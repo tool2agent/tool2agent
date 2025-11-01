@@ -1,25 +1,21 @@
 import { detectRequiresCycles } from './graph.js';
-import { type ParameterFeedback, type NonEmptyArray } from '@tool2agent/types';
+import { type ParameterFeedback, type NonEmptyArray, type ToolInputType } from '@tool2agent/types';
 import { isDeepStrictEqual } from 'util';
 
-export type ToolCallAccepted<D extends DomainType> = {
+export type ToolCallAccepted<D extends ToolInputType> = {
   status: 'accepted';
   value: D;
 };
 
-export type ToolCallRejected<D extends DomainType> = {
+export type ToolCallRejected<D extends ToolInputType> = {
   status: 'rejected';
   validationResults: { [K in keyof D]: ParameterFeedback<D, K> };
 };
 
-export type ToolCallResult<D extends DomainType> = ToolCallAccepted<D> | ToolCallRejected<D>;
-
-// The type of the user's domain data.
-// All we know is it's a field of records.
-export type DomainType = Record<string, unknown>;
+export type ToolCallResult<D extends ToolInputType> = ToolCallAccepted<D> | ToolCallRejected<D>;
 
 export type FieldSpec<
-  D extends DomainType,
+  D extends ToolInputType,
   K extends keyof D,
   Requires extends Exclude<keyof D, K>[] = Exclude<keyof D, K>[],
   Influences extends Exclude<keyof D, K>[] = Exclude<keyof D, K>[],
@@ -33,11 +29,11 @@ export type FieldSpec<
   ) => Promise<ParameterFeedback<D, K>>;
 };
 
-export type ToolSpec<D extends DomainType> = {
+export type ToolSpec<D extends ToolInputType> = {
   [K in keyof D]: FieldSpec<D, K>;
 };
 
-export function defineToolSpec<D extends DomainType>() {
+export function defineToolSpec<D extends ToolInputType>() {
   return <S extends ToolSpec<D>>(spec: S) => {
     // Cycle detection on requires graph
     const flowLike: any = {};
@@ -119,7 +115,7 @@ export function toposortFields<
   return order;
 }
 
-export function compileFixup<D extends DomainType>(spec: ToolSpec<D>) {
+export function compileFixup<D extends ToolInputType>(spec: ToolSpec<D>) {
   // Local type aliases for cleaner types
   type ValidationMap = { [P in keyof D]?: ParameterFeedback<D, P> };
   type ReqKeys<K extends keyof D> = FieldSpec<D, K>['requires'][number];

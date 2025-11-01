@@ -1,97 +1,108 @@
-import { generateObject, ToolCallOptions } from 'ai';
-import { tool2agent, Tool2AgentOptions } from '../src/index.js';
+import { generateObject } from 'ai';
+import { tool2agent, createMiddleware, type Tool2Agent } from '../src/index.js';
+import { ToolCallOptions } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 import { openrouter } from '@openrouter/ai-sdk-provider';
-import { ToolCallResult } from '@tool2agent/types';
+import type { ToolCallResult } from '@tool2agent/types';
 import * as readline from 'node:readline/promises';
 import 'dotenv/config';
 
 const inputSchema = z.object({ query: z.string() });
 const outputSchema = z.object({ results: z.array(z.string()) });
 
-type InputSchema = typeof inputSchema;
-type OutputSchema = typeof outputSchema;
-
 type SearchToolInput = z.infer<typeof inputSchema>;
 type SearchToolOutput = z.infer<typeof outputSchema>;
 
-const toolParameters: Tool2AgentOptions<InputSchema, OutputSchema> = {
+// Create the base tool
+const baseTool = tool2agent({
+  description: 'Query something somewhere',
   inputSchema,
   outputSchema,
   execute: async (params: Partial<SearchToolInput>) => {
     if (!params.query) {
-      return { ok: false, rejectionReasons: ['the query is required'] };
+      return { ok: false, rejectionReasons: ['the query is required'] } as ToolCallResult<
+        SearchToolInput,
+        SearchToolOutput
+      >;
     }
     return {
       ok: true,
       results: ['Query reversed: ' + params.query.split('').reverse().join('')],
-    };
+    } as ToolCallResult<SearchToolInput, SearchToolOutput>;
   },
-};
+});
 
 // Forbids "evil" queries from being processed by the tool
-const evilFilterMiddleware = (
-  params: Tool2AgentOptions<InputSchema, OutputSchema>,
-): Tool2AgentOptions<InputSchema, OutputSchema> => {
-  return {
-    ...params,
-    execute: async (input: Partial<SearchToolInput>, options?: ToolCallOptions) => {
-      const query = input.query ?? '';
-      const isEvil = await generateObject({
-        model: openrouter('openai/gpt-4o-mini'),
-        schema: z.object({ isEvil: z.boolean() }),
-        prompt: `Is the object or notion "${query}" considered evil?`,
-      });
-      if (isEvil.object.isEvil) {
-        return {
-          ok: false,
-          validationResults: {
-            query: {
-              valid: false,
-              refusalReasons: ['the query you provided is evil which is not allowed'],
+// This middleware intercepts the execute call to check for evil queries before execution
+const evilFilterMiddleware = createMiddleware<SearchToolInput, SearchToolOutput>({
+  transform: tool => {
+    const originalExecute = tool.execute;
+    return {
+      ...tool,
+      execute: async (input: Partial<SearchToolInput>, options: ToolCallOptions) => {
+        const query = input.query ?? '';
+        const isEvil = await generateObject({
+          model: openrouter('openai/gpt-4o-mini'),
+          schema: z.object({ isEvil: z.boolean() }),
+          prompt: `Is the object or notion "${query}" considered evil?`,
+        });
+        if (isEvil.object.isEvil) {
+          return {
+            ok: false,
+            validationResults: {
+              query: {
+                valid: false,
+                refusalReasons: ['the query you provided is evil which is not allowed'],
+              },
             },
-          },
-        };
-      }
-      return (await params.execute(input, options)) as ToolCallResult<
-        SearchToolInput,
-        SearchToolOutput
-      >;
-    },
-  };
-};
+          } as ToolCallResult<SearchToolInput, SearchToolOutput>;
+        }
+        const result = await originalExecute(input, options);
+        // Handle AsyncIterable case (though Tool2Agent typically returns Promise)
+        if (result && typeof result === 'object' && Symbol.asyncIterator in result) {
+          return result as unknown as ToolCallResult<SearchToolInput, SearchToolOutput>;
+        }
+        return result as ToolCallResult<SearchToolInput, SearchToolOutput>;
+      },
+    } as Tool2Agent<SearchToolInput, SearchToolOutput>;
+  },
+});
 
 // Prevents secrets from being fed to the LLM
 const secrets = ['secret1', 'password1'];
 
-const secretsFilterMiddleware = (
-  params: Tool2AgentOptions<InputSchema, OutputSchema>,
-): Tool2AgentOptions<InputSchema, OutputSchema> => {
-  return {
-    ...params,
-    execute: async (input: Partial<SearchToolInput>, options?: ToolCallOptions) => {
-      let result = await params.execute(input, options);
-      // If the result is rejected, return it as-is
-      if (!result.ok) {
-        return result;
-      }
-      // Check the output for secrets
-      const resultString = JSON.stringify(result);
-      if (secrets.some(secret => resultString.includes(secret))) {
-        return {
-          ok: false,
-          rejectionReasons: ['the output contains a secret which is not allowed'],
-        };
-      }
-      return result as ToolCallResult<SearchToolInput, SearchToolOutput>;
-    },
-  };
-};
-
-const tool = tool2agent({
-  description: 'Query something somewhere',
-  ...evilFilterMiddleware(secretsFilterMiddleware(toolParameters)),
+const secretsFilterMiddleware = createMiddleware<SearchToolInput, SearchToolOutput>({
+  transform: tool => {
+    const originalExecute = tool.execute;
+    return {
+      ...tool,
+      execute: async (input: Partial<SearchToolInput>, options: ToolCallOptions) => {
+        const result = await originalExecute(input, options);
+        // Handle AsyncIterable case (though Tool2Agent typically returns Promise)
+        if (result && typeof result === 'object' && Symbol.asyncIterator in result) {
+          return result as unknown as ToolCallResult<SearchToolInput, SearchToolOutput>;
+        }
+        const typedResult = result as ToolCallResult<SearchToolInput, SearchToolOutput>;
+        // If the result is rejected, return it as-is
+        if (!typedResult.ok) {
+          return typedResult;
+        }
+        // Check the output for secrets
+        const resultString = JSON.stringify(typedResult);
+        if (secrets.some(secret => resultString.includes(secret))) {
+          return {
+            ok: false,
+            rejectionReasons: ['the output contains a secret which is not allowed'],
+          };
+        }
+        return typedResult;
+      },
+    } as Tool2Agent<SearchToolInput, SearchToolOutput>;
+  },
 });
+
+// Compose the middlewares and apply to the base tool
+const tool = evilFilterMiddleware.pipe(secretsFilterMiddleware).applyTo(baseTool);
 
 const rl = readline.createInterface({
   input: process.stdin,

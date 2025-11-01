@@ -1,8 +1,8 @@
 import z from 'zod';
 import { tool } from 'ai';
-import { compileFixup, type DomainType, type FieldSpec, type ToolSpec } from './validation.js';
+import { compileFixup, type FieldSpec, type ToolSpec } from './validation.js';
 import { detectRequiresCycles } from './graph.js';
-import { type ParameterFeedback } from '@tool2agent/types';
+import { type ParameterFeedback, type ToolInputType } from '@tool2agent/types';
 import { Tool2Agent } from './tool2agent.js';
 
 type MkToolParams<InputSchema extends z.ZodObject<any>, OutputSchema extends z.ZodTypeAny> = {
@@ -12,12 +12,12 @@ type MkToolParams<InputSchema extends z.ZodObject<any>, OutputSchema extends z.Z
   execute: (input: z.infer<InputSchema>) => Promise<z.infer<OutputSchema>>;
 };
 
-type BuilderState<D extends DomainType> = {
+type BuilderState<D extends ToolInputType> = {
   readonly spec: Partial<ToolSpec<D>>;
 };
 
 export type FieldConfig<
-  D extends DomainType,
+  D extends ToolInputType,
   K extends keyof D,
   Requires extends readonly Exclude<keyof D, K>[] = readonly Exclude<keyof D, K>[],
   Influences extends readonly Exclude<keyof D, K>[] = readonly Exclude<keyof D, K>[],
@@ -34,7 +34,7 @@ export type FieldConfig<
 export const HiddenSpecSymbol = Symbol('HiddenSpec');
 
 // Narrow structural type for the ai.tool definition to avoid deep generic instantiation
-type ToolDefinition<InputSchema extends z.ZodObject<any>, OutputSchema extends z.ZodTypeAny> = {
+type ToolDefinition<InputSchema extends z.ZodTypeAny, OutputSchema extends z.ZodTypeAny> = {
   inputSchema: InputSchema;
   outputSchema: OutputSchema;
   description?: string;
@@ -71,6 +71,8 @@ function buildToolLoose<InputSchema extends z.ZodObject<any>, OutputSchema exten
 ): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>> {
   type InputType = z.infer<InputSchema>;
   type OutputType = z.infer<OutputSchema>;
+  type PartialInputType = Partial<InputType>;
+  type PartialInputSchema = z.ZodType<PartialInputType>;
   // Cycle detection on the dependency graph upfront (defensive runtime check)
   const flowLike: Record<
     string,
@@ -107,8 +109,12 @@ function buildToolLoose<InputSchema extends z.ZodObject<any>, OutputSchema exten
     z.object({ status: z.literal('accepted' as const), value: params.outputSchema }),
   ]) as z.ZodTypeAny;
 
-  const t: ToolDefinition<InputSchema, typeof wrappedOutputSchema> = {
-    inputSchema: params.inputSchema,
+  // .partial() call is safe because InputSchema extends z.ZodObject<any>
+  // We cast to satisfy TypeScript's type checker, but this is safe at runtime.
+  const partialInputSchema = params.inputSchema.partial() as any as PartialInputSchema;
+
+  const t: ToolDefinition<PartialInputSchema, typeof wrappedOutputSchema> = {
+    inputSchema: partialInputSchema,
     outputSchema: wrappedOutputSchema,
     description: params.description,
     execute: async (input: unknown, options: unknown) => {

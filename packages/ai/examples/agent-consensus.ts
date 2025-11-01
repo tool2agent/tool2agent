@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import { z } from 'zod';
-import { tool2agent } from '../src/index.js';
-import type { ToolCallResult } from '@tool2agent/types';
+import { tool2agent, createMiddleware, type Tool2Agent } from '../src/index.js';
+import type { ToolCallResult, ToolInputType } from '@tool2agent/types';
 import { generateText } from 'ai';
 import { openrouter } from '@openrouter/ai-sdk-provider';
+import type { ToolCallOptions } from '@ai-sdk/provider-utils';
 import {
   Place,
   Time,
@@ -45,24 +46,27 @@ function createAgentTools(
   mailSystem: MailSystem,
   knowledgeBase: KnowledgeBase,
 ) {
-  // Wrapper to log tool inputs and outputs
-  function wrapExecute<TFn extends (...args: any[]) => any>(toolName: string, execute: TFn): TFn {
-    return ((...args: any[]) => {
-      console.log(`🔧 ${toolName}[${agentName}] INPUT:`, JSON.stringify(args[0]));
-
-      const result = execute(...args);
-
-      if (result instanceof Promise) {
-        result.then(value => {
-          console.log(`🔧 ${toolName}[${agentName}] OUTPUT:`, JSON.stringify(value));
-        });
-      } else {
-        console.log(`🔧 ${toolName}[${agentName}] OUTPUT:`, JSON.stringify(result));
-      }
-
-      return result;
-    }) as TFn;
+  // Create a logging middleware factory
+  function createLoggingMiddleware<InputType extends ToolInputType, OutputType>(toolName: string) {
+    return createMiddleware<InputType, OutputType>({
+      transform: (tool: Tool2Agent<InputType, OutputType>): Tool2Agent<InputType, OutputType> => {
+        const { execute } = tool;
+        return {
+          ...tool,
+          execute: async (input: Partial<InputType>, options: ToolCallOptions) => {
+            console.log(`🔧 ${toolName}[${agentName}] INPUT:`, JSON.stringify(input));
+            const result = await execute(
+              input as Partial<InputType & { [key: string]: unknown }>,
+              options,
+            );
+            console.log(`🔧 ${toolName}[${agentName}] OUTPUT:`, JSON.stringify(result));
+            return result;
+          },
+        } as Tool2Agent<InputType, OutputType>;
+      },
+    });
   }
+
   const mailOutputSchema = z.object({
     messages: z.array(
       z.object({
@@ -230,13 +234,16 @@ function createAgentTools(
     return { works: allCanGo, feedback };
   };
 
-  const updateKnowledgeTool = tool2agent({
-    description: `Update your knowledge base about what an agent can or cannot do for a specific place and time. Use this when you learn (from messages or confirmations) that an agent can or cannot attend a particular place/time combination.`,
-    inputSchema: updateKnowledgeSchema,
-    outputSchema: z.never(),
-    execute: wrapExecute(
-      'update_knowledge',
-      async (params: Partial<UpdateKnowledge>): Promise<ToolCallResult<UpdateKnowledge, never>> => {
+  const updateKnowledgeTool = createLoggingMiddleware<UpdateKnowledge, never>(
+    'update_knowledge',
+  ).applyTo(
+    tool2agent({
+      description: `Update your knowledge base about what an agent can or cannot do for a specific place and time. Use this when you learn (from messages or confirmations) that an agent can or cannot attend a particular place/time combination.`,
+      inputSchema: updateKnowledgeSchema,
+      outputSchema: z.never(),
+      execute: async (
+        params: Partial<UpdateKnowledge>,
+      ): Promise<ToolCallResult<UpdateKnowledge, never>> => {
         const agent = params.agent;
         const place = params.place;
         const time = params.time;
@@ -280,16 +287,15 @@ function createAgentTools(
           ok: true,
         };
       },
-    ),
-  });
+    }),
+  );
 
-  const proposeTool = tool2agent({
-    description: `Propose a meeting place and time. This tool will check your knowledge base for conflicts and broadcast the proposal to all other agents, then return any unread messages.`,
-    inputSchema: proposeSchema,
-    outputSchema: mailOutputSchema,
-    execute: wrapExecute(
-      'propose',
-      async (params: Partial<Propose>): Promise<ToolCallResult<Propose, MailOutput>> => {
+  const proposeTool = createLoggingMiddleware<Propose, MailOutput>('propose').applyTo(
+    tool2agent({
+      description: `Propose a meeting place and time. This tool will check your knowledge base for conflicts and broadcast the proposal to all other agents, then return any unread messages.`,
+      inputSchema: proposeSchema,
+      outputSchema: mailOutputSchema,
+      execute: async (params: Partial<Propose>): Promise<ToolCallResult<Propose, MailOutput>> => {
         const place = params.place;
         const time = params.time;
 
@@ -335,16 +341,15 @@ function createAgentTools(
           })),
         };
       },
-    ),
-  });
+    }),
+  );
 
-  const confirmTool = tool2agent({
-    description: `Confirm a meeting proposal. Call this when you agree to a specific place and time. All four agents must confirm the same place and time for the meeting to be scheduled.`,
-    inputSchema: confirmSchema,
-    outputSchema: z.never(),
-    execute: wrapExecute(
-      'confirm',
-      async (params: Partial<Confirm>): Promise<ToolCallResult<Confirm, never>> => {
+  const confirmTool = createLoggingMiddleware<Confirm, never>('confirm').applyTo(
+    tool2agent({
+      description: `Confirm a meeting proposal. Call this when you agree to a specific place and time. All four agents must confirm the same place and time for the meeting to be scheduled.`,
+      inputSchema: confirmSchema,
+      outputSchema: z.never(),
+      execute: async (params: Partial<Confirm>): Promise<ToolCallResult<Confirm, never>> => {
         const place = params.place;
         const time = params.time;
 
@@ -391,16 +396,15 @@ function createAgentTools(
           ok: true,
         };
       },
-    ),
-  });
+    }),
+  );
 
-  const rejectTool = tool2agent({
-    description: `Reject a meeting proposal. Call this when you cannot attend a specific place and time. This will broadcast your rejection to all other agents.`,
-    inputSchema: rejectSchema,
-    outputSchema: z.object({}),
-    execute: wrapExecute(
-      'reject',
-      async (params: Partial<Reject>): Promise<ToolCallResult<Reject, {}>> => {
+  const rejectTool = createLoggingMiddleware<Reject, {}>('reject').applyTo(
+    tool2agent({
+      description: `Reject a meeting proposal. Call this when you cannot attend a specific place and time. This will broadcast your rejection to all other agents.`,
+      inputSchema: rejectSchema,
+      outputSchema: z.object({}),
+      execute: async (params: Partial<Reject>): Promise<ToolCallResult<Reject, {}>> => {
         const place = params.place;
         const time = params.time;
 
@@ -417,24 +421,28 @@ function createAgentTools(
           ok: true,
         };
       },
-    ),
-  });
-
-  const giveUpTool = tool2agent({
-    description: `Give up on finding a meeting time. Call this if you believe it's impossible to find a time and place that works for everyone.`,
-    inputSchema: giveUpSchema,
-    outputSchema: z.never(),
-    execute: wrapExecute('give_up', async (): Promise<ToolCallResult<GiveUp, never>> => {
-      // Print knowledge base before giving up (since giveUp throws exception)
-      console.log(`\n${formatKnowledgeBase(agentName, knowledgeBase)}\n`);
-
-      mailSystem.giveUp(agentName);
-
-      return {
-        ok: true,
-      };
     }),
-  });
+  );
+
+  const giveUpTool = createLoggingMiddleware<GiveUp, never>(
+    /* gonna */ 'give_' /* you */ + 'up',
+  ).applyTo(
+    tool2agent({
+      description: `Give up on finding a meeting time. Call this if you believe it's impossible to find a time and place that works for everyone.`,
+      inputSchema: giveUpSchema,
+      outputSchema: z.never(),
+      execute: async (): Promise<ToolCallResult<GiveUp, never>> => {
+        // Print knowledge base before giving up (since giveUp throws exception)
+        console.log(`\n${formatKnowledgeBase(agentName, knowledgeBase)}\n`);
+
+        mailSystem.giveUp(agentName);
+
+        return {
+          ok: true,
+        };
+      },
+    }),
+  );
 
   return {
     propose: proposeTool,
