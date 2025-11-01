@@ -18,7 +18,13 @@ import type { ToolCallResult, ToolInputType } from '@tool2agent/types';
 export type Tool2Agent<InputType, OutputType> = Tool<
   Partial<InputType & ToolInputType>,
   ToolCallResult<InputType & ToolInputType, OutputType>
->;
+> & {
+  // Make execute mandatory:
+  execute: ToolExecuteFunction<
+    Partial<InputType & ToolInputType>,
+    ToolCallResult<InputType & ToolInputType, OutputType>
+  >;
+};
 
 /**
  * Parameters for tool2agent() function.
