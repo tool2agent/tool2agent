@@ -46,11 +46,8 @@ This interface wires together tool2agent types and AI SDK by translating tool2ag
 <summary><strong>Show type definition</strong></summary>
 
 ```typescript
-export type Tool2Agent<InputType extends ToolInputType, OutputType> = Tool<
-  // the input type becomes a partial record (all fields optional) to allow the LLM
-  // to attempt calling the tool without providing the required parameters
-  // just to get some feedback, like suggested values.
-  Partial<InputType>,
+export type Tool2Agent<InputType, OutputType> = Tool<
+  InputType,
   // output is always a `ToolCallResult` that can be either accepted (with output value),
   // or rejected (with mandatory feedback)
   ToolCallResult<InputType, OutputType>
@@ -65,7 +62,7 @@ export type Tool2Agent<InputType extends ToolInputType, OutputType> = Tool<
 <details>
 <summary><strong>How to use tool2agent</strong></summary>
 
-- `execute()` accepts a partial (with all fields optional) tool payload, and returns a [`ToolCallResult`](../types/src/tool2agent.ts) that can either succeed (`ok: true`) with the output value, or fail (`ok: false`) with structured feedback info.
+- `execute()` accepts a tool payload and returns a [`ToolCallResult`](../types/src/tool2agent.ts) that can either succeed (`ok: true`) with the output value, or fail (`ok: false`) with structured feedback info.
 
 ```typescript
 // Parameters of tool2agent() function:
@@ -76,9 +73,9 @@ export type Tool2AgentOptions<
   inputSchema: InputSchema;
   outputSchema: OutputSchema;
   execute: (
-    params: Partial<z.infer<InputSchema>>,
+    params: z.infer<InputSchema>,
     options?: ToolCallOptions,
-  ) => Promise<ToolCallResult<z.infer<InputSchema> & ToolInputType, z.infer<OutputSchema>>>;
+  ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
 };
 
 export function tool2agent<
@@ -88,7 +85,7 @@ export function tool2agent<
   // accepts anything tool() from AI SDK accepts
 
   params: Tool2AgentOptions<InputSchema, OutputSchema>, // this type is simplified for clarity
-): Tool2Agent<z.infer<InputSchema> & ToolInputType, z.infer<OutputSchema>>;
+): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>;
 ```
 
 </details>
@@ -100,12 +97,35 @@ export function tool2agent<
 - `tool()` passes exceptions through, while `tool2agent()` catches exceptions and returns them formatted nicely to the LLM as tool2agent `rejectionReasons`
 - `tool2agent()` mandates input and output schemas. Use `never` / `z.never()` for output schema if it is not needed.
 - `tool2agent()` expects a json-serializable output type, and for this reason it does not support providing custom `toModelOutput`
-- `tool2agent()` input type is `Partial<InputType>` instead of `InputType`, allowing the LLM to call the tool with incomplete parameters to get validation feedback
+
+</details>
+
+### Middleware
+
+`createMiddleware()` allows composing transformations around tools, enabling reusable logic for validation, logging, or input/output transformation. Middleware can be piped together using the `.pipe()` method.
+
+<details>
+<summary><strong>Show type definition</strong></summary>
+
+```typescript
+export type Middleware<
+  InputType,
+  OutputType,
+  NewInputType = InputType,
+  NewOutputType = OutputType,
+> = {
+  applyTo: (tool: Tool2Agent<InputType, OutputType>) => Tool2Agent<NewInputType, NewOutputType>;
+  pipe<FinalInputType, FinalOutputType>(
+    next: Middleware<NewInputType, NewOutputType, FinalInputType, FinalOutputType>,
+  ): Middleware<InputType, OutputType, FinalInputType, FinalOutputType>;
+};
+```
 
 </details>
 
 ## Examples
 
+- [airline-booking-chat](./examples/airline-booking-chat.ts) - interactive example demonstrating how to use `mkTool()` for building conversational agents with logical dependencies between parameters and complex validation logic
 - [censorship-bypass](./examples/censorship-bypass.ts) - shows how tool feedback can be used to guide the LLM towards its goal in the presence of an obstacle (word filter for search queries)
 - [middleware](./examples/middleware.ts) - demonstrates how middleware can be composed to add validation and execution logic around tool calls
 - [agent-consensus](./examples/agent-consensus.ts) - multiple agents reaching consensus using a knowledge base that keeps track of each other's constraints. tool2agent is used to provide feedback from that knowledge base.
