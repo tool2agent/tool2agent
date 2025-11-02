@@ -1,11 +1,5 @@
 import { type Expect, type Equal } from './expect.js';
 import { type Tool2Agent, type Tool2AgentOptions, tool2agent } from '../src/index.js';
-import type {
-  ToolCallResult,
-  ToolCallAccepted,
-  ToolCallRejected,
-  ToolInputType,
-} from '@tool2agent/types';
 import { z } from 'zod';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
@@ -81,27 +75,19 @@ const testTool = tool2agent({
 // Type-level test: execute should always be present and non-undefined
 type TestExecutePresence = Expect<
   Equal<
-    Tool2Agent<TestInputType & ToolInputType, OutputType>['execute'],
-    NonNullable<Tool2Agent<TestInputType & ToolInputType, OutputType>['execute']>
+    Tool2Agent<TestInputType, OutputType>['execute'],
+    NonNullable<Tool2Agent<TestInputType, OutputType>['execute']>
   >
 >;
 
 // Type-level test: execute should be a key of Tool2Agent
 type TestExecuteKey = Expect<
-  Equal<
-    'execute' extends keyof Tool2Agent<TestInputType & ToolInputType, OutputType> ? true : false,
-    true
-  >
+  Equal<'execute' extends keyof Tool2Agent<TestInputType, OutputType> ? true : false, true>
 >;
 
 // Type-level test: execute should not be optional
 type TestExecuteRequired = Expect<
-  Equal<
-    undefined extends Tool2Agent<TestInputType & ToolInputType, OutputType>['execute']
-      ? false
-      : true,
-    true
-  >
+  Equal<undefined extends Tool2Agent<TestInputType, OutputType>['execute'] ? false : true, true>
 >;
 
 // Runtime test: verify execute exists at runtime

@@ -72,10 +72,10 @@ export type TypedParametersFeedback<InputType> =
         rejectionReasons: NonEmptyArray<string>;
       }>
     : AtLeastOne<{
-        /** If InputType is not a record, we provide feedback for the entire input. 
-         * In this case, refusalReasons becomes required, and validationResults is not allowed, 
+        /** If InputType is not a record, we provide feedback for the entire input.
+         * In this case, refusalReasons becomes required, and validationResults is not allowed,
          * because Exclude<'value', 'value'> is never.
-        */
+         */
         validationResults: ParameterFeedback<{ value: InputType }, 'value'>;
         rejectionReasons: NonEmptyArray<string>;
       }>;

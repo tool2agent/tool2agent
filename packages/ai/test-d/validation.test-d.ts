@@ -1,4 +1,4 @@
-import { defineToolSpec, type ToolSpec } from '../src/validation.js';
+import { validateToolSpec, type ToolSpec } from '../src/validation.js';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
 
@@ -10,7 +10,7 @@ type Airline = {
 };
 
 // Valid spec should type-check
-const validSpec = defineToolSpec<Airline>()({
+const validSpec = {
   departure: {
     requires: [],
     influencedBy: ['arrival'],
@@ -45,7 +45,8 @@ const validSpec = defineToolSpec<Airline>()({
       context: { departure: string; arrival: string; date: string },
     ) => ({ allowedValues: [1, 2, 3], valid: true, normalizedValue: 1 }),
   },
-});
+} satisfies ToolSpec<Airline>;
+validateToolSpec(validSpec);
 
 // Invalid: reference missing field in requires
 const badRequires: ToolSpec<Airline> = {
@@ -85,7 +86,7 @@ const badRequires: ToolSpec<Airline> = {
 };
 
 // Invalid: fetchOptions param types must match requires/influencedBy
-const badFetchTypes = defineToolSpec<Airline>()({
+const badFetchTypes = {
   departure: {
     requires: [],
     influencedBy: ['arrival'],
@@ -119,10 +120,10 @@ const badFetchTypes = defineToolSpec<Airline>()({
     influencedBy: [],
     validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
   },
-});
+} satisfies ToolSpec<Airline>;
 
 // Invalid: influencedBy references a non-existing field
-const badInfluences = defineToolSpec<Airline>()({
+const badInfluences = {
   departure: {
     requires: [],
     // @ts-expect-error - non-existing field in influencedBy
@@ -156,4 +157,4 @@ const badInfluences = defineToolSpec<Airline>()({
     influencedBy: [],
     validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
   },
-});
+} satisfies ToolSpec<Airline>;

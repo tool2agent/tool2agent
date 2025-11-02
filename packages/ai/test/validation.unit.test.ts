@@ -31,11 +31,16 @@ const tool = mkAirlineBookingTool(entries, async input => {
   return input;
 });
 
-const spec = (tool as unknown as { [HiddenSpecSymbol]: ToolSpec<Airline> })[HiddenSpecSymbol];
+const spec = (
+  tool as unknown as {
+    [HiddenSpecSymbol]: ToolSpec<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>;
+  }
+)[HiddenSpecSymbol];
+const dynamicFields: (keyof Airline)[] = ['departure', 'arrival', 'date', 'passengers'];
 
 describe('validation.unit.test.ts', () => {
   it('#1 compileFixup rejects when fields are missing and provides allowedValues', async () => {
-    const fixup = compileFixup(spec);
+    const fixup = compileFixup(spec, dynamicFields);
     const res = await fixup({});
     const expected: ToolCallRejected<Airline> = {
       status: 'rejected',
@@ -54,7 +59,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#2 rejects invalid dependent value with filtered allowedValues (arrival given departure)', async () => {
-    const fixup = compileFixup(spec);
+    const fixup = compileFixup(spec, dynamicFields);
     const res = await fixup({ departure: 'London', arrival: 'Tokyo' });
     console.log(JSON.stringify(toposortFields(spec), null, 2));
     const expected: ToolCallRejected<Airline> = {
@@ -74,7 +79,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#3 rejects with allowed options when date invalid and passengers too large for available seats', async () => {
-    const fixup = compileFixup(spec);
+    const fixup = compileFixup(spec, dynamicFields);
     const res = await fixup({
       departure: 'London',
       arrival: 'New York',
@@ -97,7 +102,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#4 accepts a valid full selection', async () => {
-    const fixup = compileFixup(spec);
+    const fixup = compileFixup(spec, dynamicFields);
     const res = await fixup({
       departure: 'Berlin',
       arrival: 'London',
@@ -112,7 +117,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#5 options are always included even when rejected', async () => {
-    const fixup = compileFixup(spec);
+    const fixup = compileFixup(spec, dynamicFields);
     const res = await fixup({ departure: 'Paris', passengers: 1000 });
     const expected = {
       status: 'rejected' as const,

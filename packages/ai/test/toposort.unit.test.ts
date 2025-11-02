@@ -1,16 +1,17 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { defineToolSpec, toposortFields } from '../src/validation.js';
+import { validateToolSpec, toposortFields, type ToolSpec } from '../src/validation.js';
 
 describe('validation.toposortFields', () => {
   it('orders by requires dependencies, roots first', () => {
     type D = { a: number; b: number; c: number; d: number };
-    const spec = defineToolSpec<D>()({
+    const spec: ToolSpec<D> = {
       a: { requires: [], influencedBy: [], validate: async () => ({ valid: true }) },
       b: { requires: ['a'], influencedBy: [], validate: async () => ({ valid: true }) },
       c: { requires: ['b'], influencedBy: [], validate: async () => ({ valid: true }) },
       d: { requires: ['b', 'c'], influencedBy: [], validate: async () => ({ valid: true }) },
-    });
+    };
+    validateToolSpec(spec);
     const order = toposortFields(spec);
     // a must be before b; b before c and d; c before d
     const pos = (k: keyof typeof spec) => order.indexOf(k);
@@ -21,12 +22,13 @@ describe('validation.toposortFields', () => {
 
   it('breaks ties by fewer influencedBy, then key name', () => {
     type D = { a: number; b: number; c: number; d: number };
-    const spec = defineToolSpec<D>()({
+    const spec: ToolSpec<D> = {
       a: { requires: [], influencedBy: ['b', 'c', 'd'], validate: async () => ({ valid: true }) },
       b: { requires: [], influencedBy: ['c'], validate: async () => ({ valid: true }) },
       c: { requires: [], influencedBy: [], validate: async () => ({ valid: true }) },
       d: { requires: [], influencedBy: [], validate: async () => ({ valid: true }) },
-    });
+    };
+    validateToolSpec(spec);
     const order = toposortFields(spec);
     // c and d both have 0 influencedBy; alphabetical: c before d
     // b has 1 influencedBy
@@ -39,13 +41,14 @@ describe('validation.toposortFields', () => {
 
   it('handles parallel branches correctly', () => {
     type D = { a: number; b: number; c: number; d: number; e: number };
-    const spec = defineToolSpec<D>()({
+    const spec: ToolSpec<D> = {
       a: { requires: [], influencedBy: [], validate: async () => ({ valid: true }) },
       b: { requires: ['a'], influencedBy: [], validate: async () => ({ valid: true }) },
       c: { requires: ['a'], influencedBy: [], validate: async () => ({ valid: true }) },
       d: { requires: ['b'], influencedBy: [], validate: async () => ({ valid: true }) },
       e: { requires: ['c'], influencedBy: [], validate: async () => ({ valid: true }) },
-    });
+    };
+    validateToolSpec(spec);
     const order = toposortFields(spec);
     const pos = (k: keyof D) => order.indexOf(k);
     // a before b and c; b before d; c before e
@@ -65,11 +68,12 @@ describe('validation.toposortFields', () => {
 
   it('prioritizes absence of influencedBy', () => {
     type D = { a: number; b: number; c: number };
-    const spec = defineToolSpec<D>()({
+    const spec: ToolSpec<D> = {
       a: { requires: [], influencedBy: [], validate: async () => ({ valid: true }) },
       b: { requires: ['a'], influencedBy: ['c'], validate: async () => ({ valid: true }) },
       c: { requires: ['a'], influencedBy: [], validate: async () => ({ valid: true }) },
-    });
+    };
+    validateToolSpec(spec);
     const order = toposortFields(spec);
     expect(order).to.deep.equal(['a', 'c', 'b']);
   });

@@ -19,6 +19,11 @@ export const airlineBookingSchema = z.object({
   date: z.string().min(1),
   passengers: z.number().min(1),
 });
+
+export const bookingInputSchema = airlineBookingSchema.partial();
+export type BookingInputSchema = typeof bookingInputSchema;
+export type BookingInput = z.infer<BookingInputSchema>;
+
 export type AirlineBookingSchema = typeof airlineBookingSchema;
 export type AirlineBooking = z.infer<AirlineBookingSchema>;
 
@@ -27,15 +32,17 @@ export const mkAirlineBookingTool = (
   flights: FlightEntry[],
   // callback used for testing purposes
   execute: (input: AirlineBooking) => Promise<AirlineBooking>,
-): Tool2Agent<AirlineBookingSchema, AirlineBookingSchema> => {
+): Tool2Agent<BookingInput, AirlineBooking> => {
   // schedule object contains some useful methods for filtering and querying the flights.
   const schedule = new AirlineSchedule(flights);
   // Abort controller to kill LLM inference as soon as we get the response and save some tokens
   const responseReceivedController = new AbortController();
   // Here we define our tool using a builder:
+  const dynamic = ['passengers', 'date', 'arrival', 'departure'] as const;
   const tool = mkTool({
     inputSchema: airlineBookingSchema,
     outputSchema: airlineBookingSchema,
+    dynamicFields: dynamic,
     description: 'Airline booking tool.',
     // we are not doing anything here, just returning the input,
     // that's why both input and output schemas are the same: `AirlineBookingSchema`
