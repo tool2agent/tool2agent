@@ -1,4 +1,3 @@
-import type { ToolInputType } from '@tool2agent/types';
 import type { Tool2Agent } from './tool2agent.js';
 
 /**
@@ -11,9 +10,9 @@ import type { Tool2Agent } from './tool2agent.js';
  * @template NewOutputType - The output type of the transformed tool (defaults to OutputType)
  */
 export type Middleware<
-  InputType extends ToolInputType,
+  InputType,
   OutputType,
-  NewInputType extends ToolInputType = InputType,
+  NewInputType = InputType,
   NewOutputType = OutputType,
 > = {
   /**
@@ -36,7 +35,7 @@ export type Middleware<
    * const finalTool = composed.applyTo(originalTool);
    * ```
    */
-  pipe<FinalInputType extends ToolInputType, FinalOutputType>(
+  pipe<FinalInputType, FinalOutputType>(
     next: Middleware<NewInputType, NewOutputType, FinalInputType, FinalOutputType>,
   ): Middleware<InputType, OutputType, FinalInputType, FinalOutputType>;
 };
@@ -52,9 +51,9 @@ export type Middleware<
  * @template NewOutputType - The output type of the transformed tool (defaults to OutputType)
  */
 export type MiddlewareOptions<
-  InputType extends ToolInputType,
+  InputType,
   OutputType,
-  NewInputType extends ToolInputType = InputType,
+  NewInputType = InputType,
   NewOutputType = OutputType,
 > = {
   /**
@@ -79,11 +78,11 @@ export type MiddlewareOptions<
  * @template FinalOutputType - The output type after the next middleware
  */
 function createPipe<
-  InputType extends ToolInputType,
+  InputType,
   OutputType,
-  CurrentInputType extends ToolInputType,
+  CurrentInputType,
   CurrentOutputType,
-  FinalInputType extends ToolInputType,
+  FinalInputType,
   FinalOutputType,
 >(
   currentApplyTo: (
@@ -96,7 +95,7 @@ function createPipe<
   };
   return {
     applyTo: composedApplyTo,
-    pipe: <FinalFinalInputType extends ToolInputType, FinalFinalOutputType>(
+    pipe: <FinalFinalInputType, FinalFinalOutputType>(
       nextNext: Middleware<
         FinalInputType,
         FinalOutputType,
@@ -136,9 +135,9 @@ function createPipe<
  * ```
  */
 export function createMiddleware<
-  InputType extends ToolInputType,
+  InputType,
   OutputType,
-  NewInputType extends ToolInputType = InputType,
+  NewInputType = InputType,
   NewOutputType = OutputType,
 >(
   options: MiddlewareOptions<InputType, OutputType, NewInputType, NewOutputType>,
@@ -147,7 +146,7 @@ export function createMiddleware<
 
   return {
     applyTo,
-    pipe<FinalInputType extends ToolInputType, FinalOutputType>(
+    pipe<FinalInputType, FinalOutputType>(
       next: Middleware<NewInputType, NewOutputType, FinalInputType, FinalOutputType>,
     ): Middleware<InputType, OutputType, FinalInputType, FinalOutputType> {
       return createPipe(applyTo, next);

@@ -27,7 +27,7 @@ const add1Middleware = createMiddleware<InputType, OutputType>({
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<InputType>, options: ToolCallOptions) => {
+      execute: async (input: InputType, options: ToolCallOptions) => {
         const result = (await originalExecute(input, options)) as ToolCallResult<
           InputType,
           OutputType
@@ -47,7 +47,7 @@ const multiply2Middleware = createMiddleware<InputType, OutputType>({
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<InputType>, options: ToolCallOptions) => {
+      execute: async (input: InputType, options: ToolCallOptions) => {
         const result = (await originalExecute(input, options)) as ToolCallResult<
           InputType,
           OutputType
@@ -67,7 +67,7 @@ const add10Middleware = createMiddleware<InputType, OutputType>({
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<InputType>, options: ToolCallOptions) => {
+      execute: async (input: InputType, options: ToolCallOptions) => {
         const result = (await originalExecute(input, options)) as ToolCallResult<
           InputType,
           OutputType
@@ -87,7 +87,7 @@ const subtract5Middleware = createMiddleware<InputType, OutputType>({
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<InputType>, options: ToolCallOptions) => {
+      execute: async (input: InputType, options: ToolCallOptions) => {
         const result = (await originalExecute(input, options)) as ToolCallResult<
           InputType,
           OutputType

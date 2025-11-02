@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { z } from 'zod';
 import { tool2agent, createMiddleware, type Tool2Agent } from '../src/index.js';
-import type { ToolCallResult, ToolInputType } from '@tool2agent/types';
+import type { ToolCallResult } from '@tool2agent/types';
 import { generateText } from 'ai';
 import { openrouter } from '@openrouter/ai-sdk-provider';
 import type { ToolCallOptions } from '@ai-sdk/provider-utils';
@@ -47,18 +47,15 @@ function createAgentTools(
   knowledgeBase: KnowledgeBase,
 ) {
   // Create a logging middleware factory
-  function createLoggingMiddleware<InputType extends ToolInputType, OutputType>(toolName: string) {
+  function createLoggingMiddleware<InputType, OutputType>(toolName: string) {
     return createMiddleware<InputType, OutputType>({
       transform: (tool: Tool2Agent<InputType, OutputType>): Tool2Agent<InputType, OutputType> => {
         const { execute } = tool;
         return {
           ...tool,
-          execute: async (input: Partial<InputType>, options: ToolCallOptions) => {
+          execute: async (input: InputType, options: ToolCallOptions) => {
             console.log(`🔧 ${toolName}[${agentName}] INPUT:`, JSON.stringify(input));
-            const result = await execute(
-              input as Partial<InputType & { [key: string]: unknown }>,
-              options,
-            );
+            const result = await execute(input, options);
             console.log(`🔧 ${toolName}[${agentName}] OUTPUT:`, JSON.stringify(result));
             return result;
           },
@@ -241,9 +238,7 @@ function createAgentTools(
       description: `Update your knowledge base about what an agent can or cannot do for a specific place and time. Use this when you learn (from messages or confirmations) that an agent can or cannot attend a particular place/time combination.`,
       inputSchema: updateKnowledgeSchema,
       outputSchema: z.never(),
-      execute: async (
-        params: Partial<UpdateKnowledge>,
-      ): Promise<ToolCallResult<UpdateKnowledge, never>> => {
+      execute: async (params: UpdateKnowledge): Promise<ToolCallResult<UpdateKnowledge, never>> => {
         const agent = params.agent;
         const place = params.place;
         const time = params.time;
@@ -295,7 +290,7 @@ function createAgentTools(
       description: `Propose a meeting place and time. This tool will check your knowledge base for conflicts and broadcast the proposal to all other agents, then return any unread messages.`,
       inputSchema: proposeSchema,
       outputSchema: mailOutputSchema,
-      execute: async (params: Partial<Propose>): Promise<ToolCallResult<Propose, MailOutput>> => {
+      execute: async (params: Propose): Promise<ToolCallResult<Propose, MailOutput>> => {
         const place = params.place;
         const time = params.time;
 
@@ -349,7 +344,7 @@ function createAgentTools(
       description: `Confirm a meeting proposal. Call this when you agree to a specific place and time. All four agents must confirm the same place and time for the meeting to be scheduled.`,
       inputSchema: confirmSchema,
       outputSchema: z.never(),
-      execute: async (params: Partial<Confirm>): Promise<ToolCallResult<Confirm, never>> => {
+      execute: async (params: Confirm): Promise<ToolCallResult<Confirm, never>> => {
         const place = params.place;
         const time = params.time;
 
@@ -404,7 +399,7 @@ function createAgentTools(
       description: `Reject a meeting proposal. Call this when you cannot attend a specific place and time. This will broadcast your rejection to all other agents.`,
       inputSchema: rejectSchema,
       outputSchema: z.object({}),
-      execute: async (params: Partial<Reject>): Promise<ToolCallResult<Reject, {}>> => {
+      execute: async (params: Reject): Promise<ToolCallResult<Reject, {}>> => {
         const place = params.place;
         const time = params.time;
 

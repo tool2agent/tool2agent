@@ -1,16 +1,9 @@
 import { type ZodType } from 'zod';
 import { AtLeastOne, AtMostOne, NonEmptyArray } from './types.js';
 
-/**
- * We enforce that the tool input type is a record of values.
- * The motivation for this is that we should be able to provide structured feedback
- * for each field.
- */
-export type ToolInputType = Record<string, unknown>;
-
 /** The outermost type that characterizes the outcome of a tool call.
  */
-export type ToolCallResult<InputType extends ToolInputType, OutputType> =
+export type ToolCallResult<InputType, OutputType> =
   | ToolCallAccepted<OutputType>
   | ToolCallRejected<InputType>;
 
@@ -59,25 +52,38 @@ export type FreeFormFeedback = {
  * Rejected tool call.
  * Mandates at least one feedback item.
  */
-export type ToolCallRejected<InputType extends ToolInputType> = {
+export type ToolCallRejected<InputType> = {
   ok: false;
-} & AtLeastOne<{
-  /**
-   * not every parameter in the input type is required to be present,
-   * but we require at least one to ensure the LLM can make some progress
-   * on refining input.
-   */
-  validationResults: AtLeastOne<{
-    [ParamKey in keyof InputType]?: ParameterFeedback<InputType, ParamKey>;
-  }>;
-  rejectionReasons: NonEmptyArray<string>;
-}> &
+} & TypedParametersFeedback<InputType> &
   FreeFormFeedback;
 
+export type TypedParametersFeedback<InputType> =
+  /** If InputType is a record, we can provide feedback for its fields. */
+  InputType extends Record<string, unknown>
+    ? AtLeastOne<{
+        /**
+         * not every parameter in the input type is required to be present,
+         * but we require at least one to ensure the LLM can make some progress
+         * on refining input.
+         */
+        validationResults: AtLeastOne<{
+          [ParamKey in keyof InputType]?: ParameterFeedback<InputType, ParamKey>;
+        }>;
+        rejectionReasons: NonEmptyArray<string>;
+      }>
+    : AtLeastOne<{
+        /** If InputType is not a record, we provide feedback for the entire input. 
+         * In this case, refusalReasons becomes required, and validationResults is not allowed, 
+         * because Exclude<'value', 'value'> is never.
+        */
+        validationResults: ParameterFeedback<{ value: InputType }, 'value'>;
+        rejectionReasons: NonEmptyArray<string>;
+      }>;
+
 export type ParameterFeedback<
-  InputType extends ToolInputType,
+  InputType extends Record<string, unknown>,
   ParamKey extends keyof InputType,
-> = ParameterFeedbackCommon<InputType[ParamKey]> & ParameterFeedbackVariants<InputType>;
+> = ParameterFeedbackCommon<InputType[ParamKey]> & ParameterFeedbackVariants<InputType, ParamKey>;
 
 /**
  * Feedback for a single tool call parameter.
@@ -105,21 +111,28 @@ export type AcceptableValues<T> = AtMostOne<{
 }>;
 
 /** Validation result for a single tool call input object field. */
-export type ParameterFeedbackVariants<InputType extends ToolInputType> =
+export type ParameterFeedbackVariants<
+  InputType extends Record<string, unknown>,
+  ParamKey extends keyof InputType,
+> =
   | {
       valid: true;
     }
   | ({
       valid: false;
-    } & ParameterFeedbackRefusal<InputType>);
+    } & ParameterFeedbackRefusal<InputType, ParamKey>);
 
 /** Refusal result for a single tool call input object field. Mandates at least one justification for the refusal. */
-export type ParameterFeedbackRefusal<InputType extends ToolInputType> = AtLeastOne<{
+export type ParameterFeedbackRefusal<
+  InputType extends Record<string, unknown>,
+  ParamKey extends keyof InputType,
+> = AtLeastOne<{
   /** Freeform reasons for why the parameter was not considered valid. */
   refusalReasons?: NonEmptyArray<string>;
   /**
    * Sometimes it is not possible to validate a parameter without knowing the values of other parameters.
-   * In this case, the developer may specify the parameters that are required to validate this parameter.
+   * In this case, the developer may specify the parameters that are required to validate this parameter,
+   * excluding the parameter itself on the type level.
    */
-  requiresValidParameters?: NonEmptyArray<keyof InputType>;
+  requiresValidParameters?: NonEmptyArray<Exclude<keyof InputType, ParamKey>>;
 }>;

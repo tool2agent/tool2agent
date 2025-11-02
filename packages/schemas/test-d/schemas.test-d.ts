@@ -18,7 +18,6 @@ import type {
   ToolCallAccepted,
   ToolCallRejected,
   ToolCallResult,
-  ToolInputType,
 } from '@tool2agent/types';
 import { z } from 'zod';
 
@@ -59,11 +58,14 @@ const parameterFeedbackRefusalSchema =
   mkParameterFeedbackRefusalSchema<TestInputType>(paramKeyEnum);
 type InferredParameterFeedbackRefusal = z.infer<typeof parameterFeedbackRefusalSchema>;
 type _TestParameterFeedbackRefusal1 = Expect<
-  Equal<InferredParameterFeedbackRefusal, ParameterFeedbackRefusal<TestInputType>>
+  Equal<
+    InferredParameterFeedbackRefusal,
+    ParameterFeedbackRefusal<TestInputType, keyof TestInputType>
+  >
 >;
 
 // ==================== ParameterFeedback Schema Tests ====================
-const parameterFeedbackSchema = mkParameterFeedbackSchema<TestInputType, string>(
+const parameterFeedbackSchema = mkParameterFeedbackSchema<TestInputType, string, 'name'>(
   testInputSchema.shape.name,
   paramKeyEnum,
 );
@@ -128,4 +130,41 @@ const emptyTool2AgentSchema = mkTool2AgentSchema(emptyInputSchema, testOutputSch
 type InferredEmptyTool2AgentResult = z.infer<typeof emptyTool2AgentSchema>;
 type _TestEmptyTool2AgentResult1 = Expect<
   Equal<InferredEmptyTool2AgentResult, ToolCallResult<EmptyInputType, TestOutputType>>
+>;
+
+// ==================== Non-Record Input Schema Tests ====================
+// Test with string input (non-record)
+const stringInputSchema = z.string();
+type StringInputType = z.infer<typeof stringInputSchema>;
+const stringTool2AgentSchema = mkTool2AgentSchema(stringInputSchema, testOutputSchema);
+type InferredStringTool2AgentResult = z.infer<typeof stringTool2AgentSchema>;
+type _TestStringTool2AgentResult1 = Expect<
+  Equal<InferredStringTool2AgentResult, ToolCallResult<StringInputType, TestOutputType>>
+>;
+
+// Test with number input (non-record)
+const numberInputSchema = z.number();
+type NumberInputType = z.infer<typeof numberInputSchema>;
+const numberTool2AgentSchema = mkTool2AgentSchema(numberInputSchema, z.never());
+type InferredNumberTool2AgentResult = z.infer<typeof numberTool2AgentSchema>;
+type _TestNumberTool2AgentResult1 = Expect<
+  Equal<InferredNumberTool2AgentResult, ToolCallResult<NumberInputType, never>>
+>;
+
+// Test with array input (non-record)
+const arrayInputSchema = z.array(z.string());
+type ArrayInputType = z.infer<typeof arrayInputSchema>;
+const arrayTool2AgentSchema = mkTool2AgentSchema(arrayInputSchema, z.string());
+type InferredArrayTool2AgentResult = z.infer<typeof arrayTool2AgentSchema>;
+type _TestArrayTool2AgentResult1 = Expect<
+  Equal<InferredArrayTool2AgentResult, ToolCallResult<ArrayInputType, string>>
+>;
+
+// Test with union input (non-record)
+const unionInputSchema = z.union([z.string(), z.number()]);
+type UnionInputType = z.infer<typeof unionInputSchema>;
+const unionTool2AgentSchema = mkTool2AgentSchema(unionInputSchema, z.boolean());
+type InferredUnionTool2AgentResult = z.infer<typeof unionTool2AgentSchema>;
+type _TestUnionTool2AgentResult1 = Expect<
+  Equal<InferredUnionTool2AgentResult, ToolCallResult<UnionInputType, boolean>>
 >;

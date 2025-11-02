@@ -18,13 +18,7 @@ const baseTool = tool2agent({
   description: 'Query something somewhere',
   inputSchema,
   outputSchema,
-  execute: async (params: Partial<SearchToolInput>) => {
-    if (!params.query) {
-      return { ok: false, rejectionReasons: ['the query is required'] } as ToolCallResult<
-        SearchToolInput,
-        SearchToolOutput
-      >;
-    }
+  execute: async (params: SearchToolInput) => {
     return {
       ok: true,
       results: ['Query reversed: ' + params.query.split('').reverse().join('')],
@@ -39,8 +33,8 @@ const evilFilterMiddleware = createMiddleware<SearchToolInput, SearchToolOutput>
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<SearchToolInput>, options: ToolCallOptions) => {
-        const query = input.query ?? '';
+      execute: async (input: SearchToolInput, options: ToolCallOptions) => {
+        const query = input.query;
         const isEvil = await generateObject({
           model: openrouter('openai/gpt-4o-mini'),
           schema: z.object({ isEvil: z.boolean() }),
@@ -76,12 +70,8 @@ const secretsFilterMiddleware = createMiddleware<SearchToolInput, SearchToolOutp
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<SearchToolInput>, options: ToolCallOptions) => {
+      execute: async (input: SearchToolInput, options: ToolCallOptions) => {
         const result = await originalExecute(input, options);
-        // Handle AsyncIterable case (though Tool2Agent typically returns Promise)
-        if (result && typeof result === 'object' && Symbol.asyncIterator in result) {
-          return result as unknown as ToolCallResult<SearchToolInput, SearchToolOutput>;
-        }
         const typedResult = result as ToolCallResult<SearchToolInput, SearchToolOutput>;
         // If the result is rejected, return it as-is
         if (!typedResult.ok) {

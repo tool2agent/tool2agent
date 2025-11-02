@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { generateText } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { tool2agent } from '../src/tool2agent.js';
-import type { ToolCallResult, ToolInputType } from '@tool2agent/types';
+import type { ToolCallResult } from '@tool2agent/types';
 import { createMiddleware } from '../src/middleware.js';
 import type { Tool2Agent } from '../src/tool2agent.js';
 import type { ToolCallOptions } from '@ai-sdk/provider-utils';
@@ -80,7 +80,7 @@ const bookingLoggingMiddleware = createMiddleware<AirlineBooking, AirlineBooking
     const originalExecute = tool.execute;
     return {
       ...tool,
-      execute: async (input: Partial<AirlineBooking>, options: ToolCallOptions) => {
+      execute: async (input: AirlineBooking, options: ToolCallOptions) => {
         console.log(`\n🔧 bookFlight INPUT:`, JSON.stringify(input, null, 2));
         const result = await originalExecute(input, options);
         console.log(`🔧 bookFlight OUTPUT:`, JSON.stringify(result, null, 2));

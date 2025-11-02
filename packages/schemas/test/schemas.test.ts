@@ -109,7 +109,10 @@ test('parameter feedback schemas', async t => {
 
   await t.test('mkParameterFeedbackSchema valid and invalid branches', () => {
     const keyEnum = createKeyEnum(inputSchema);
-    const namePf = mkParameterFeedbackSchema(inputSchema.shape.name, keyEnum);
+    const namePf = mkParameterFeedbackSchema<z.infer<typeof inputSchema>, string, 'name'>(
+      inputSchema.shape.name,
+      keyEnum,
+    );
 
     // valid: true branches
     expectParseOK(namePf, { valid: true });
@@ -514,7 +517,10 @@ test('type inference tests', async t => {
 
   await t.test('ParameterFeedback with type inference', () => {
     const keyEnum = createKeyEnum(inputSchema);
-    const paramSchema = mkParameterFeedbackSchema(inputSchema.shape.name, keyEnum);
+    const paramSchema = mkParameterFeedbackSchema<z.infer<typeof inputSchema>, string, 'name'>(
+      inputSchema.shape.name,
+      keyEnum,
+    );
     type ParamFeedbackType = z.infer<typeof paramSchema>;
 
     const validParam: ParamFeedbackType = {
@@ -548,7 +554,7 @@ test('type inference tests', async t => {
 
   await t.test('ValidationResults with type inference', () => {
     const keyEnum = createKeyEnum(inputSchema);
-    const vrSchema = mkValidationResultsSchema(inputSchema, keyEnum);
+    const vrSchema = mkValidationResultsSchema<z.infer<typeof inputSchema>>(inputSchema, keyEnum);
     type ValidationResultsType = z.infer<typeof vrSchema>;
 
     const singleParam: ValidationResultsType = {
@@ -668,5 +674,163 @@ test('type inference tests', async t => {
     };
 
     expectParseFail(complexToolSchema, invalidComplexTyped);
+  });
+});
+
+test('non-record input types', async t => {
+  await t.test('mkTool2AgentSchema with string input (non-record)', () => {
+    const stringInputSchema = z.string();
+    const stringOutputSchema = z.object({ result: z.string() });
+    const stringToolSchema = mkTool2AgentSchema(stringInputSchema, stringOutputSchema);
+    type StringToolResultType = z.infer<typeof stringToolSchema>;
+
+    // Accepted: non-record outputs wrap in value field
+    const accepted: StringToolResultType = {
+      ok: true,
+      result: 'success',
+      feedback: ['Done'],
+    };
+    expectParseOK(stringToolSchema, accepted);
+
+    // Rejected: validationResults wraps input in { value: InputType }
+    const rejectedWithValidation: StringToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: false,
+        refusalReasons: ['Invalid format'],
+      },
+    } as StringToolResultType;
+    expectParseOK(stringToolSchema, rejectedWithValidation);
+
+    // Rejected: with rejectionReasons
+    const rejectedWithReasons: StringToolResultType = {
+      ok: false,
+      rejectionReasons: ['Input too long'],
+    } as StringToolResultType;
+    expectParseOK(stringToolSchema, rejectedWithReasons);
+
+    // TODO: this case is BAD LOOKING, reconsider
+    // Rejected: with both validationResults and rejectionReasons
+    const rejectedWithBoth: StringToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: false,
+        refusalReasons: ['Invalid format'],
+      },
+      rejectionReasons: ['Also rejected'],
+    } as StringToolResultType;
+    expectParseOK(stringToolSchema, rejectedWithBoth);
+
+    // Negative: missing both validationResults and rejectionReasons
+    expectParseFail(stringToolSchema, { ok: false });
+  });
+
+  await t.test('mkTool2AgentSchema with number input (non-record)', () => {
+    const numberInputSchema = z.number();
+    const numberOutputSchema = z.never();
+    const numberToolSchema = mkTool2AgentSchema(numberInputSchema, numberOutputSchema);
+    type NumberToolResultType = z.infer<typeof numberToolSchema>;
+
+    // Accepted: never output has no value field
+    const accepted: NumberToolResultType = {
+      ok: true,
+      feedback: ['Processed'],
+    };
+    expectParseOK(numberToolSchema, accepted);
+
+    // Rejected: validationResults wraps number in { value: number }
+    const rejected: NumberToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: false,
+        refusalReasons: ['Number too large'],
+        suggestedValues: [42, 100],
+      },
+    } as NumberToolResultType;
+    expectParseOK(numberToolSchema, rejected);
+  });
+
+  await t.test('mkTool2AgentSchema with array input (non-record)', () => {
+    const arrayInputSchema = z.array(z.string());
+    const arrayOutputSchema = z.number();
+    const arrayToolSchema = mkTool2AgentSchema(arrayInputSchema, arrayOutputSchema);
+    type ArrayToolResultType = z.infer<typeof arrayToolSchema>;
+
+    // Accepted: non-object output wraps in value field
+    const accepted: ArrayToolResultType = {
+      ok: true,
+      value: 42,
+    };
+    expectParseOK(arrayToolSchema, accepted);
+
+    // Rejected: validationResults wraps array in { value: string[] }
+    const rejected: ArrayToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: false,
+        refusalReasons: ['Array too short'],
+        allowedValues: [['a', 'b']],
+      },
+    } as ArrayToolResultType;
+    expectParseOK(arrayToolSchema, rejected);
+  });
+
+  await t.test('mkTool2AgentSchema with union input (non-record)', () => {
+    const unionInputSchema = z.union([z.string(), z.number()]);
+    const unionOutputSchema = z.boolean();
+    const unionToolSchema = mkTool2AgentSchema(unionInputSchema, unionOutputSchema);
+    type UnionToolResultType = z.infer<typeof unionToolSchema>;
+
+    // Accepted
+    const accepted: UnionToolResultType = {
+      ok: true,
+      value: true,
+    };
+    expectParseOK(unionToolSchema, accepted);
+
+    // Rejected: validationResults wraps union in { value: string | number }
+    const rejected: UnionToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: false,
+        refusalReasons: ['Invalid union value'],
+      },
+    } as UnionToolResultType;
+    expectParseOK(unionToolSchema, rejected);
+  });
+
+  await t.test('non-record input validation feedback structure', () => {
+    const stringInputSchema = z.string();
+    const stringToolSchema = mkTool2AgentSchema(stringInputSchema, z.string());
+    type StringToolResultType = z.infer<typeof stringToolSchema>;
+
+    // Valid feedback structure for non-record: wraps in { value: InputType }
+    const rejectedWithValidFeedback: StringToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: true,
+        normalizedValue: 'normalized',
+        feedback: ['Value normalized'],
+      },
+    } as StringToolResultType;
+    expectParseOK(stringToolSchema, rejectedWithValidFeedback);
+
+    const rejectedWithInvalidFeedback: StringToolResultType = {
+      ok: false,
+      validationResults: {
+        valid: false,
+        refusalReasons: ['Too short'],
+        // For non-record inputs, requiresValidParameters is not applicable (no other params)
+      },
+    } as StringToolResultType;
+    expectParseOK(stringToolSchema, rejectedWithInvalidFeedback);
+
+    // Negative: validationResults must be ParameterFeedback structure, not object with keys
+    expectParseFail(stringToolSchema, {
+      ok: false,
+      validationResults: {
+        value: { valid: false, refusalReasons: ['bad'] },
+      },
+    });
   });
 });
