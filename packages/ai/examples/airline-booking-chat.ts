@@ -9,6 +9,7 @@ import { createMiddleware } from '../src/middleware.js';
 import type { Tool2Agent } from '../src/tool2agent.js';
 import type { ToolCallOptions } from '@ai-sdk/provider-utils';
 import { mkAirlineBookingTool, type AirlineBooking } from '../test/airline.js';
+import { setLoggingEnabled } from '../src/internal-logger.js';
 
 // Flight data
 const flights = [
@@ -170,6 +171,9 @@ Important: You must complete the booking in a single conversation. Do not ask mu
     rl.close();
   }
 }
+
+// Enable internal logging for debugging airline booking validation
+setLoggingEnabled(true);
 
 main().catch(error => {
   console.error('Fatal error:', error);

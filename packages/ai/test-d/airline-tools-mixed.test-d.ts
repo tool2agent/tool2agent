@@ -1,5 +1,5 @@
 import z from 'zod';
-import { mkTool } from '../src/builder.js';
+import { toolBuilder } from '../src/builder.js';
 import { type ParameterFeedback } from '@tool2agent/types';
 
 // This type is used as fully validated input for the tool's execute function
@@ -14,7 +14,7 @@ export type AirlineBooking = z.infer<AirlineBookingSchema>;
 
 const dynamic = ['arrival', 'departure'] as const;
 
-const toolBuilder = mkTool({
+const builder = toolBuilder({
   inputSchema: airlineBookingSchema,
   outputSchema: airlineBookingSchema,
   dynamicFields: dynamic,
@@ -22,7 +22,7 @@ const toolBuilder = mkTool({
   execute: async (input: AirlineBooking) => input,
 });
 
-toolBuilder.field('departure', {
+builder.field('departure', {
   requires: [],
   influencedBy: [],
   // @ts-expect-error unknown field is not allowed, even as option
@@ -31,7 +31,7 @@ toolBuilder.field('departure', {
   },
 });
 
-toolBuilder.field('departure', {
+builder.field('departure', {
   requires: [],
   influencedBy: [],
   // @ts-expect-error type of a static field is wrong
@@ -40,7 +40,7 @@ toolBuilder.field('departure', {
   },
 });
 
-toolBuilder.field('departure', {
+builder.field('departure', {
   requires: [],
   influencedBy: [],
   // @ts-expect-error presence of a static field is wrong, must be optional
@@ -49,7 +49,7 @@ toolBuilder.field('departure', {
   },
 });
 
-toolBuilder.field('departure', {
+builder.field('departure', {
   // @ts-expect-error date is not a dynamic field, cannot be in requires
   requires: ['date'],
   influencedBy: [],
@@ -58,7 +58,7 @@ toolBuilder.field('departure', {
   },
 });
 
-toolBuilder
+builder
   .field('departure', {
     requires: [],
     influencedBy: ['arrival'],
@@ -73,7 +73,7 @@ toolBuilder
   // @ts-expect-error build is not available, missing `passengers` field specification
   .build();
 
-const bookFlight = toolBuilder
+const bookFlight = builder
   .field('departure', {
     requires: [],
     influencedBy: ['arrival'],

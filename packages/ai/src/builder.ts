@@ -4,7 +4,7 @@ import { validate, type FieldSpec, type ToolSpec, validateToolSpec } from './val
 import { type ParameterFeedback, type ToolCallResult } from '@tool2agent/types';
 import { Tool2Agent } from './tool2agent.js';
 
-export type MkToolParams<
+export type ToolBuilderParams<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodTypeAny,
   DynamicKeys extends keyof z.infer<InputSchema>,
@@ -101,7 +101,7 @@ function buildToolLoose<
   OutputSchema extends z.ZodTypeAny,
   DynamicUnion extends keyof z.infer<InputSchema>,
 >(
-  params: MkToolParams<InputSchema, OutputSchema, DynamicUnion>,
+  params: ToolBuilderParams<InputSchema, OutputSchema, DynamicUnion>,
   fullSpec: ToolSpec<Pick<z.infer<InputSchema>, DynamicUnion>>,
 ): Tool2Agent<DynamicInput<InputSchema, DynamicUnion>, z.infer<OutputSchema>> {
   type InputType = z.infer<InputSchema>;
@@ -171,12 +171,12 @@ function buildToolLoose<
  * @param params.execute - The function to execute the tool, that will be called with the validated input. Must accept a value corresponding to inputSchema, and output a value corresponding to outputSchema.
  * @returns A builder object for the tool.
  */
-export function mkTool<
+export function toolBuilder<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodTypeAny,
   DynamicFields extends keyof z.infer<InputSchema> & string,
 >(
-  params: MkToolParams<InputSchema, OutputSchema, DynamicFields>,
+  params: ToolBuilderParams<InputSchema, OutputSchema, DynamicFields>,
 ): BuilderApi<z.infer<InputSchema>, z.infer<OutputSchema>, never, DynamicFields> {
   type InputType = z.infer<InputSchema>;
   type OutputType = z.infer<OutputSchema>;
@@ -249,7 +249,7 @@ function makeApi<
   Added extends keyof InputType,
   DynamicUnion extends keyof InputType & string,
 >(
-  params: MkToolParams<InputSchema, OutputSchema, DynamicUnion>,
+  params: ToolBuilderParams<InputSchema, OutputSchema, DynamicUnion>,
   state: BuilderState<InputType, DynamicUnion>,
 ): BuilderApi<InputType, OutputType, Added, DynamicUnion> {
   return {

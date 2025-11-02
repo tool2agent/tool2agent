@@ -1,16 +1,17 @@
 import z from 'zod';
-import { mkTool } from '../src/builder.js';
+import { toolBuilder } from '../src/builder.js';
 import { AirlineSchedule, FlightEntry, FlightFilters } from './airline-schedule.js';
 import { uniq } from './utils.js';
 import { Tool2Agent } from '../src/tool2agent.js';
-import { setLoggingEnabled } from '../src/internal-logger.js';
 
-// This example demonstrates how to use `mkTool()` to define a tool that:
+// This code is runnable with `pnpm run example:airline-booking-chat` from the `packages/ai` directory.
+// The entry point is packages/ai/examples/airline-booking-chat.ts
+
+// This example demonstrates how to use `toolBuilder()` to define a tool that:
 // - is interactive
-// - maintains ordering of parameter filling (via dependencies between fields)
+// - maintains ordering of parameter filling (via dependencies between fields) - which effectively guides the
+//   assistant towards asking the user the right questions
 // - provides rich feedback to the LLM based on provided values
-//
-// To see how this tool can be plugged into the LLM, check out the `./airline-booking.test.ts` test file.
 
 // Our domain type for airline bookings. All fields are required.
 export const airlineBookingSchema = z.object({
@@ -20,15 +21,15 @@ export const airlineBookingSchema = z.object({
   passengers: z.number().min(1),
 });
 
+// Partial schema for LLM inputs - at runtime, all dynamic parameters are made optional
 export const bookingInputSchema = airlineBookingSchema.partial();
-export type BookingInputSchema = typeof bookingInputSchema;
-export type BookingInput = z.infer<BookingInputSchema>;
+export type BookingInput = z.infer<typeof bookingInputSchema>;
 
-export type AirlineBookingSchema = typeof airlineBookingSchema;
-export type AirlineBooking = z.infer<AirlineBookingSchema>;
+export type AirlineBooking = z.infer<typeof airlineBookingSchema>;
 
 // Create a tool to book a flight from a pre-defined list.
 export const mkAirlineBookingTool = (
+  // list of available flights
   flights: FlightEntry[],
   // callback used for testing purposes
   execute: (input: AirlineBooking) => Promise<AirlineBooking>,
@@ -39,7 +40,7 @@ export const mkAirlineBookingTool = (
   const responseReceivedController = new AbortController();
   // Here we define our tool using a builder:
   const dynamic = ['passengers', 'date', 'arrival', 'departure'] as const;
-  const tool = mkTool({
+  const tool = toolBuilder({
     inputSchema: airlineBookingSchema,
     outputSchema: airlineBookingSchema,
     dynamicFields: dynamic,
@@ -152,11 +153,8 @@ export const mkAirlineBookingTool = (
         return { valid: false as const, refusalReasons: ['value required'] };
       },
     })
-    // Finally, we call build() that ensures we have provided specs for all fields.
+    // Finally, we call build() that ensures we have provided specs for all dynamic fields.
     .build();
-
-  // Enable internal logging for debugging airline booking validation
-  setLoggingEnabled(true);
 
   return tool;
 };

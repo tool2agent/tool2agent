@@ -1,6 +1,6 @@
 import z from 'zod';
 import { generateText } from 'ai';
-import { mkTool } from '../src/builder.js';
+import { toolBuilder } from '../src/builder.js';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { type ParameterFeedback } from '@tool2agent/types';
 
@@ -18,7 +18,7 @@ export type AirlineBooking = z.infer<AirlineBookingSchema>;
 
 const dynamic = ['passengers', 'date', 'arrival', 'departure'] as const;
 
-const tool1 = mkTool({
+const tool1 = toolBuilder({
   inputSchema: airlineBookingSchema,
   outputSchema: airlineBookingSchema,
   dynamicFields: dynamic,

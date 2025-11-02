@@ -7,7 +7,7 @@ pnpm install @tool2agent/ai
 ```
 
 ```typescript
-import { tool2agent, mkTool } from '@tool2agent/ai';
+import { tool2agent, toolBuilder } from '@tool2agent/ai';
 ```
 
 ## Motivation
@@ -20,21 +20,20 @@ import { tool2agent, mkTool } from '@tool2agent/ai';
 
 This package implements tool2agent bindings for AI SDK in two forms:
 
-- `mkTool()` (a.k.a. "tool builder") - a type-safe mini-framework for creating interactive LLM tools with rich feedback.
-- `tool2agent()` function is an enriched replacement for AI SDK `tool()` that gives more manual control to the developer than the agent builder. It does not implement any validation logic itself, only providing type-safe interface for that.
+- `toolBuilder()` - a type-safe mini-framework for creating interactive LLM tools with rich feedback.
+- `tool2agent()` function is a tool2agent-enabled replacement for AI SDK `tool()` that gives full manual control over validation logic to the developer, providing only type safety.
 
 ### Tool builder
 
-`mkTool()` is the main value proposition of tool2agent so far.
+`toolBuilder()` is the main value proposition of tool2agent so far. It allows to semi-declaratively define tool feedback flows.
 
-It allows to semi-declaratively define tool feedback flows.
+`toolBuilder()` accepts a tool input schema with some of its fields marked as _dynamic parameters_.
 
-- All tool arguments (input object fields) are made optional.
-- The LLM can fill them as it "sees" fit.
-- Validation runs for every argument separately. Once it succeeds, a field is marked as valid.
-- The developer can specify dependencies between arguments, which delays validation of tool input object fields until their dependencies are validated. This allows to establish ordering of parameter filling, which is very useful for user-facing chat applications.
-- During validation, the _values_ of validated fields are also accessible, making it possible to provide more narrow feedback.
-- Once all fields are valid, tool call is executed normally.
+At runtime, dynamic parameters are made optional, and the LLM can fill them as it "sees" fit.
+
+Every dynamic parameter has a validation function attached, that is called regardless of whether the parameter has been passed. This allows the tool to provide feedback at any time. For example, feedback can include a list of value suggestions, that may depend on _other_ parameter values.
+
+These parameter inter-dependencies is what makes `toolBuilder()` a neat instrument for building conversational LLM workflows, because they allow to specify the _ordering_ of parameters to be filled, which guides the assistant towards _asking the user the right questions_.
 
 [Check out a complete usage example](./test/airline.ts)
 
@@ -125,7 +124,7 @@ export type Middleware<
 
 ## Examples
 
-- [airline-booking-chat](./examples/airline-booking-chat.ts) - interactive example demonstrating how to use `mkTool()` for building conversational agents with logical dependencies between parameters and complex validation logic
+- [airline-booking-chat](./examples/airline-booking-chat.ts) - interactive example demonstrating how to use `toolBuilder()` for building conversational agents with logical dependencies between parameters and complex validation logic
 - [censorship-bypass](./examples/censorship-bypass.ts) - shows how tool feedback can be used to guide the LLM towards its goal in the presence of an obstacle (word filter for search queries)
 - [middleware](./examples/middleware.ts) - demonstrates how middleware can be composed to add validation and execution logic around tool calls
 - [agent-consensus](./examples/agent-consensus.ts) - multiple agents reaching consensus using a knowledge base that keeps track of each other's constraints. tool2agent is used to provide feedback from that knowledge base.
