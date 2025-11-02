@@ -34,7 +34,8 @@
     "prepack": "pnpm run build",
     "example:censorship-bypass": "pnpx tsx examples/censorship-bypass.ts",
     "example:middleware": "pnpx tsx examples/middleware.ts",
-    "example:agent-consensus": "pnpx tsx examples/agent-consensus.ts"
+    "example:agent-consensus": "pnpx tsx examples/agent-consensus.ts",
+    "example:airline-booking-chat": "pnpx tsx examples/airline-booking-chat.ts"
   },
   "keywords": [
     "tool2agent",

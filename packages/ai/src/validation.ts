@@ -1,6 +1,7 @@
 import { detectRequiresCycles } from './graph.js';
 import { type ParameterFeedback, type NonEmptyArray, type ToolInputType } from '@tool2agent/types';
 import { isDeepStrictEqual } from 'util';
+import { log } from './internal-logger.js';
 
 export type ToolCallAccepted<D extends ToolInputType> = {
   status: 'accepted';
@@ -123,7 +124,7 @@ export function compileFixup<D extends ToolInputType>(spec: ToolSpec<D>) {
   type ContextFor<K extends keyof D> = Pick<D, ReqKeys<K>> & Partial<Pick<D, InfKeys<K>>>;
 
   async function fixup(loose: Partial<D>): Promise<ToolCallResult<D>> {
-    console.log('fixup:start', loose);
+    log('fixup:start', loose);
     // Validation results for all fields.
     const validationResults: ValidationMap = {};
 
@@ -149,7 +150,7 @@ export function compileFixup<D extends ToolInputType>(spec: ToolSpec<D>) {
       // Skip if any required fields are missing.
       if (!requiresReady) {
         const missing = rule.requires.filter(dep => typeof validFields[dep] === 'undefined');
-        console.log('fixup:skip (missing requirements)', { field: k, missing });
+        log('fixup:skip (missing requirements)', { field: k, missing });
         if (missing.length > 0) {
           validationResults[k] = {
             valid: false,
@@ -187,7 +188,7 @@ export function compileFixup<D extends ToolInputType>(spec: ToolSpec<D>) {
         }
       }
 
-      console.log('fixup:validate:', {
+      log('fixup:validate:', {
         field: k,
         value,
         context,
@@ -201,12 +202,12 @@ export function compileFixup<D extends ToolInputType>(spec: ToolSpec<D>) {
 
     if (!allValidOrSkipped) {
       const res = { status: 'rejected', validationResults } as ToolCallRejected<D>;
-      console.log('fixup:rejected', JSON.stringify(res, null, 2));
+      log('fixup:rejected', JSON.stringify(res, null, 2));
       return res;
     }
 
     const res = { status: 'accepted', value: validFields as D } as ToolCallAccepted<D>;
-    console.log('fixup:accepted', JSON.stringify(res, null, 2));
+    log('fixup:accepted', JSON.stringify(res, null, 2));
     return res;
   }
 

@@ -109,9 +109,14 @@ function buildToolLoose<InputSchema extends z.ZodObject<any>, OutputSchema exten
     z.object({ status: z.literal('accepted' as const), value: params.outputSchema }),
   ]) as z.ZodTypeAny;
 
-  // .partial() call is safe because InputSchema extends z.ZodObject<any>
-  // We cast to satisfy TypeScript's type checker, but this is safe at runtime.
-  const partialInputSchema = params.inputSchema.partial() as any as PartialInputSchema;
+  // Create a partial schema by iterating over fields and calling optional() on each
+  // Start with empty object and extend with all optional fields
+  const shape = params.inputSchema.shape;
+  const optionalFields: Record<string, z.ZodTypeAny> = {};
+  for (const key in shape) {
+    optionalFields[key] = shape[key].optional();
+  }
+  const partialInputSchema = z.object({}).extend(optionalFields) as any as PartialInputSchema;
 
   const t: ToolDefinition<PartialInputSchema, typeof wrappedOutputSchema> = {
     inputSchema: partialInputSchema,
