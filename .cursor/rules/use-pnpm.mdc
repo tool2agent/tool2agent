@@ -1,0 +1,7 @@
+---
+alwaysApply: true
+---
+
+# Package Manager
+- ALWAYS use `pnpm` instead of `npm` or `yarn`
+- This is a pnpm workspace monorepo

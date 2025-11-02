@@ -29,3 +29,14 @@ export function log(...args: unknown[]): void {
     console.log(...args);
   }
 }
+
+/**
+ * Log a message with delayed computation. The callback is only executed if logging is enabled.
+ * This is useful for avoiding expensive operations (like JSON.stringify) when logging is disabled.
+ * @param callback - A function that returns the arguments to pass to console.log
+ */
+export function delayedLog(callback: () => unknown[]): void {
+  if (enabled) {
+    console.log(...callback());
+  }
+}

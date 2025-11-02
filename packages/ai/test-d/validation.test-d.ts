@@ -45,11 +45,11 @@ const validSpec = {
       context: { departure: string; arrival: string; date: string },
     ) => ({ allowedValues: [1, 2, 3], valid: true, normalizedValue: 1 }),
   },
-} satisfies ToolSpec<Airline>;
+} satisfies ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;
 validateToolSpec(validSpec);
 
 // Invalid: reference missing field in requires
-const badRequires: ToolSpec<Airline> = {
+const badRequires: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>> = {
   departure: {
     // @ts-expect-error - nonexistent field in requires
     requires: ['nonexistent'],
@@ -120,7 +120,7 @@ const badFetchTypes = {
     influencedBy: [],
     validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
   },
-} satisfies ToolSpec<Airline>;
+} satisfies ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;
 
 // Invalid: influencedBy references a non-existing field
 const badInfluences = {
@@ -157,4 +157,4 @@ const badInfluences = {
     influencedBy: [],
     validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
   },
-} satisfies ToolSpec<Airline>;
+} satisfies ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;

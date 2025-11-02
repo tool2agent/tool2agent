@@ -1,17 +1,17 @@
 import z from 'zod';
 import { tool, ToolCallOptions } from 'ai';
-import { compileFixup, type FieldSpec, type ToolSpec, validateToolSpec } from './validation.js';
+import { validate, type FieldSpec, type ToolSpec, validateToolSpec } from './validation.js';
 import { type ParameterFeedback, type ToolCallResult } from '@tool2agent/types';
 import { Tool2Agent } from './tool2agent.js';
 
 export type MkToolParams<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodTypeAny,
-  DynamicKeys extends readonly (keyof z.infer<InputSchema>)[],
+  DynamicKeys extends keyof z.infer<InputSchema>,
 > = {
   inputSchema: InputSchema;
   outputSchema: OutputSchema;
-  dynamicFields: DynamicKeys;
+  dynamicFields: readonly DynamicKeys[];
   description?: string;
   execute: (input: z.infer<InputSchema>) => Promise<z.infer<OutputSchema>>;
 };
@@ -34,26 +34,32 @@ export type DynamicInput<
   [K in Exclude<keyof z.infer<InputSchema>, DynamicFields>]: z.infer<InputSchema>[K];
 };
 
-export type BuilderState<D extends Record<string, unknown>, DynamicUnion extends keyof D> = {
-  readonly spec: Partial<ToolSpec<D, DynamicUnion>>;
+export type BuilderState<
+  InputType extends Record<string, unknown>,
+  DynamicUnion extends keyof InputType,
+> = {
+  readonly spec: ToolSpec<Pick<InputType, DynamicUnion>>;
 };
 
 export type FieldConfig<
-  D extends Record<string, unknown>,
-  K extends keyof D,
-  Requires extends readonly Exclude<keyof D, K>[] = readonly Exclude<keyof D, K>[],
-  Influences extends readonly Exclude<keyof D, K>[] = readonly Exclude<keyof D, K>[],
-  StaticFields extends keyof D = never,
+  InputType extends Record<string, unknown>,
+  K extends keyof InputType,
+  Requires extends readonly Exclude<keyof InputType, K>[] = readonly Exclude<keyof InputType, K>[],
+  Influences extends readonly Exclude<keyof InputType, K>[] = readonly Exclude<
+    keyof InputType,
+    K
+  >[],
+  StaticFields extends keyof InputType = never,
 > = {
   requires: Requires;
   influencedBy: Influences;
   description?: string;
   validate: (
-    value: D[K] | undefined,
-    context: Pick<D, Requires[number]> &
-      Partial<Pick<D, Influences[number]>> &
-      Pick<D, StaticFields>,
-  ) => Promise<ParameterFeedback<D, K>>;
+    value: InputType[K] | undefined,
+    context: Pick<InputType, Requires[number]> &
+      Partial<Pick<InputType, Influences[number]>> &
+      Pick<InputType, StaticFields>,
+  ) => Promise<ParameterFeedback<InputType, K>>;
 };
 
 export const HiddenSpecSymbol = Symbol('HiddenSpec');
@@ -86,7 +92,7 @@ type BuilderApi<
     ? Tool2Agent<DynamicInputType<InputType, DynamicUnion>, OutputType>
     : never;
 
-  spec: ToolSpec<InputType, DynamicUnion>;
+  spec: ToolSpec<Pick<InputType, DynamicUnion>>;
 };
 
 // Erased builder (loose) — returns SDK Tool with erased generics to avoid deep type instantiation
@@ -95,8 +101,8 @@ function buildToolLoose<
   OutputSchema extends z.ZodTypeAny,
   DynamicUnion extends keyof z.infer<InputSchema>,
 >(
-  params: MkToolParams<InputSchema, OutputSchema, readonly DynamicUnion[]>,
-  fullSpec: ToolSpec<z.infer<InputSchema>, DynamicUnion>,
+  params: MkToolParams<InputSchema, OutputSchema, DynamicUnion>,
+  fullSpec: ToolSpec<Pick<z.infer<InputSchema>, DynamicUnion>>,
 ): Tool2Agent<DynamicInput<InputSchema, DynamicUnion>, z.infer<OutputSchema>> {
   type InputType = z.infer<InputSchema>;
   type OutputType = z.infer<OutputSchema>;
@@ -104,8 +110,6 @@ function buildToolLoose<
   type DynamicInputSchema = z.ZodType<DynamicInputType>;
 
   validateToolSpec(fullSpec);
-
-  const fixup = compileFixup<InputType, DynamicUnion>(fullSpec, params.dynamicFields);
 
   // Create an input schema where ONLY dynamic fields are optional
   const originalShape = params.inputSchema.shape as Record<string, z.ZodTypeAny>;
@@ -127,7 +131,7 @@ function buildToolLoose<
     inputSchema: dynamicInputSchema,
     description: params.description,
     execute: async (input: DynamicInputType, options: ToolCallOptions) => {
-      const result = await fixup(input);
+      const result = await validate<InputType, DynamicUnion>(fullSpec, input);
       if (result.status === 'rejected') {
         return {
           ok: false,
@@ -150,7 +154,7 @@ function buildToolLoose<
     DynamicInput<InputSchema, DynamicUnion>,
     OutputType
   > & {
-    [HiddenSpecSymbol]: ToolSpec<InputType, DynamicUnion>;
+    [HiddenSpecSymbol]: ToolSpec<Pick<InputType, DynamicUnion>>;
   };
   ret[HiddenSpecSymbol] = fullSpec;
   return ret;
@@ -170,16 +174,18 @@ function buildToolLoose<
 export function mkTool<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodTypeAny,
-  DynamicFields extends readonly (keyof z.infer<InputSchema>)[],
+  DynamicFields extends keyof z.infer<InputSchema> & string,
 >(
   params: MkToolParams<InputSchema, OutputSchema, DynamicFields>,
-): BuilderApi<z.infer<InputSchema>, z.infer<OutputSchema>, never, DynamicFields[number]> {
+): BuilderApi<z.infer<InputSchema>, z.infer<OutputSchema>, never, DynamicFields> {
   type InputType = z.infer<InputSchema>;
   type OutputType = z.infer<OutputSchema>;
-  const state: BuilderState<InputType, DynamicFields[number]> = { spec: {} };
+  const state: BuilderState<InputType, DynamicFields> = {
+    spec: {} as ToolSpec<Pick<InputType, DynamicFields>>,
+  };
 
   return {
-    spec: state.spec as ToolSpec<InputType, DynamicFields[number]>, // a lie :)
+    spec: state.spec,
     /**
      * Populates the tool specification with a new field.
      * @param key - The key of the field to add.
@@ -196,7 +202,7 @@ export function mkTool<
         typeof key,
         Exclude<keyof InputType, typeof key>[],
         Exclude<keyof InputType, typeof key>[],
-        Exclude<keyof InputType, DynamicFields[number] | typeof key>
+        Exclude<keyof InputType, DynamicFields | typeof key>
       > = {
         requires: [...cfg.requires] as Exclude<keyof InputType, typeof key>[],
         influencedBy: [...cfg.influencedBy] as Exclude<keyof InputType, typeof key>[],
@@ -206,22 +212,18 @@ export function mkTool<
           typeof key,
           Exclude<keyof InputType, typeof key>[],
           Exclude<keyof InputType, typeof key>[],
-          Exclude<keyof InputType, DynamicFields[number] | typeof key>
+          Exclude<keyof InputType, DynamicFields | typeof key>
         >['validate'],
       };
-      const nextSpec: Partial<ToolSpec<InputType, DynamicFields[number]>> = {
+      const nextSpec: ToolSpec<Pick<InputType, DynamicFields | typeof key>> = {
         ...state.spec,
         [key]: normalizedCfg,
       };
-      const next: BuilderState<InputType, DynamicFields[number]> = { spec: nextSpec };
-      return makeApi<
-        InputSchema,
-        OutputSchema,
-        InputType,
-        OutputType,
-        typeof key,
-        DynamicFields[number]
-      >(params, next);
+      const next: BuilderState<InputType, DynamicFields> = { spec: nextSpec };
+      return makeApi<InputSchema, OutputSchema, InputType, OutputType, typeof key, DynamicFields>(
+        params,
+        next,
+      );
     },
     /**
      * Builds the tool from the specification.
@@ -229,21 +231,14 @@ export function mkTool<
      * Will error on the type level if any of the fields are missing.
      */
     build: (() => {
-      // Build spec from provided dynamic fields only (no static fields)
+      // Build spec from provided fields
       const provided = state.spec;
-      const fullSpec: ToolSpec<InputType, DynamicFields[number]> = provided as ToolSpec<
-        InputType,
-        DynamicFields[number]
-      >;
-      // Object.fromEntries doesn't preserve exact type structure, so cast is needed
-      // InputType = z.infer<InputSchema>, so fullSpec is compatible with ToolSpec<z.infer<InputSchema>, DynamicUnion>
-      // Cast to Tool2Agent to match the return type expected by BuilderApi
-      return buildToolLoose<InputSchema, OutputSchema, DynamicFields[number]>(
+      return buildToolLoose<InputSchema, OutputSchema, DynamicFields>(
         params,
-        fullSpec,
-      ) as Tool2Agent<DynamicInputType<InputType, DynamicFields[number]>, OutputType>;
-    }) as BuilderApi<InputType, OutputType, never, DynamicFields[number]>['build'],
-  } as BuilderApi<InputType, OutputType, never, DynamicFields[number]>;
+        provided,
+      ) as Tool2Agent<DynamicInputType<InputType, DynamicFields>, OutputType>;
+    }) as BuilderApi<InputType, OutputType, never, DynamicFields>['build'],
+  } as BuilderApi<InputType, OutputType, never, DynamicFields>;
 }
 
 function makeApi<
@@ -252,13 +247,9 @@ function makeApi<
   InputType extends z.infer<InputSchema>,
   OutputType extends z.infer<OutputSchema>,
   Added extends keyof InputType,
-  DynamicUnion extends keyof InputType & keyof z.infer<InputSchema>,
+  DynamicUnion extends keyof InputType & string,
 >(
-  params: MkToolParams<
-    InputSchema,
-    OutputSchema,
-    readonly (DynamicUnion & keyof z.infer<InputSchema>)[]
-  >,
+  params: MkToolParams<InputSchema, OutputSchema, DynamicUnion>,
   state: BuilderState<InputType, DynamicUnion>,
 ): BuilderApi<InputType, OutputType, Added, DynamicUnion> {
   return {
@@ -281,7 +272,7 @@ function makeApi<
           Exclude<keyof InputType, DynamicUnion | typeof key>
         >['validate'],
       };
-      const nextSpec: Partial<ToolSpec<InputType, DynamicUnion>> = {
+      const nextSpec: ToolSpec<Pick<InputType, DynamicUnion | typeof key>> = {
         ...state.spec,
         [key]: normalizedCfg,
       };
@@ -296,20 +287,11 @@ function makeApi<
       >(params, nextState);
     },
     build: ((..._args: any[]) => {
-      // Build spec from provided dynamic fields only (no static fields)
+      // Build spec from provided fields
       const provided = state.spec;
-      const fullSpec: ToolSpec<InputType, DynamicUnion> = provided as ToolSpec<
-        InputType,
-        DynamicUnion
-      >;
-      // Object.fromEntries doesn't preserve exact type structure, so cast is needed
-      // InputType extends z.infer<InputSchema>, so fullSpec is compatible with ToolSpec<z.infer<InputSchema>, DynamicUnion>
       return buildToolLoose<InputSchema, OutputSchema, DynamicUnion & keyof z.infer<InputSchema>>(
         params,
-        fullSpec as unknown as ToolSpec<
-          z.infer<InputSchema>,
-          DynamicUnion & keyof z.infer<InputSchema>
-        >,
+        provided as ToolSpec<Pick<z.infer<InputSchema>, DynamicUnion & keyof z.infer<InputSchema>>>,
       );
     }) as unknown as BuilderApi<InputType, OutputType, Added, DynamicUnion>['build'],
   } as BuilderApi<InputType, OutputType, Added, DynamicUnion>;

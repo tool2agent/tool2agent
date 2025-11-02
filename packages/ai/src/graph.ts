@@ -31,3 +31,65 @@ export function detectRequiresCycles(
 
   return cycles;
 }
+
+/**
+ * Topologically sort fields based on `requires` dependencies.
+ * - Nodes with no `requires` come first.
+ * - Among ready nodes (in-degree 0), prefer those with fewer `influencedBy` entries,
+ *   then break ties deterministically by key name.
+ */
+export function toposortFields<
+  S extends Record<string, { requires: readonly string[]; influencedBy?: readonly string[] }>,
+>(spec: S): (keyof S)[] {
+  const keys = Object.keys(spec) as (keyof S)[];
+  const inDegree = new Map<keyof S, number>();
+  const dependents = new Map<keyof S, (keyof S)[]>();
+
+  // Initialize structures
+  for (const k of keys) {
+    inDegree.set(k, (spec[k].requires as (keyof S)[]).length);
+    dependents.set(k, []);
+  }
+
+  // Build adjacency: r -> k for each k.requires includes r
+  for (const k of keys) {
+    for (const r of spec[k].requires as unknown as (keyof S)[]) {
+      const arr = dependents.get(r)!;
+      arr.push(k);
+    }
+  }
+
+  // Helper to sort ready set by tie-breakers
+  const sortReady = (a: keyof S, b: keyof S) => {
+    const aInf = spec[a].influencedBy?.length ?? 0;
+    const bInf = spec[b].influencedBy?.length ?? 0;
+    if (aInf !== bInf) return aInf - bInf; // fewer influencedBy first
+    const aKey = String(a);
+    const bKey = String(b);
+    return aKey.localeCompare(bKey);
+  };
+
+  const ready: (keyof S)[] = keys.filter(k => (inDegree.get(k) ?? 0) === 0).sort(sortReady);
+  const order: (keyof S)[] = [];
+
+  while (ready.length > 0) {
+    const current = ready.shift()!;
+    order.push(current);
+    for (const dep of dependents.get(current)!) {
+      const nextDeg = (inDegree.get(dep) ?? 0) - 1;
+      inDegree.set(dep, nextDeg);
+      if (nextDeg === 0) {
+        // insert keeping order by tie-breaker
+        ready.push(dep);
+        ready.sort(sortReady);
+      }
+    }
+  }
+
+  // Ackchually we don't need this, because we have checked for cycles on init.
+  // Let's just hope the passed objects are not treated as m*table by the users
+  if (order.length !== keys.length) {
+    throw new Error('Cycle detected or missing nodes during toposort');
+  }
+  return order;
+}
