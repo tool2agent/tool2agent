@@ -1,22 +1,22 @@
 import { type Expect, type Equal } from './expect.js';
 import {
-  mkFreeFormFeedbackSchema,
+  mkFeedbackAndInstructionsSchema,
   mkAcceptableValuesSchema,
-  mkParameterFeedbackRefusalSchema,
-  mkParameterFeedbackSchema,
+  mkParameterValidationFailureReasonsSchema,
+  mkParameterValidationResultSchema,
   mkValidationResultsSchema,
-  mkToolCallAcceptedSchema,
-  mkToolCallRejectedSchema,
+  mkToolCallSuccessSchema,
+  mkToolCallFailureSchema,
   mkToolCallResultSchema,
   mkTool2AgentSchema,
 } from '../src/index.js';
 import type {
-  FreeFormFeedback,
+  FeedbackAndInstructions,
   AcceptableValues,
-  ParameterFeedbackRefusal,
-  ParameterFeedback,
-  ToolCallAccepted,
-  ToolCallRejected,
+  ParameterValidationFailureReasons,
+  ParameterValidationResult,
+  ToolCallSuccess,
+  ToolCallFailure,
   ToolCallResult,
 } from '@tool2agent/types';
 import { z } from 'zod';
@@ -43,35 +43,40 @@ type TestOutputType = z.infer<typeof testOutputSchema>;
 // Create key enum using z.keyof() (Zod v4+)
 const paramKeyEnum = z.keyof(testInputSchema);
 
-// ==================== FreeFormFeedback Schema Tests ====================
-const freeFormFeedbackSchema = mkFreeFormFeedbackSchema();
-type InferredFreeFormFeedback = z.infer<typeof freeFormFeedbackSchema>;
-type _TestFreeFormFeedback1 = Expect<Equal<InferredFreeFormFeedback, FreeFormFeedback>>;
+// ==================== FeedbackAndInstructions Schema Tests ====================
+const feedbackAndInstructionsSchema = mkFeedbackAndInstructionsSchema();
+type InferredFeedbackAndInstructions = z.infer<typeof feedbackAndInstructionsSchema>;
+type _TestFeedbackAndInstructions1 = Expect<
+  Equal<InferredFeedbackAndInstructions, FeedbackAndInstructions>
+>;
 
 // ==================== AcceptableValues Schema Tests ====================
 const acceptableValuesSchema = mkAcceptableValuesSchema(z.string());
 type InferredAcceptableValues = z.infer<typeof acceptableValuesSchema>;
 type _TestAcceptableValues1 = Expect<Equal<InferredAcceptableValues, AcceptableValues<string>>>;
 
-// ==================== ParameterFeedbackRefusal Schema Tests ====================
-const parameterFeedbackRefusalSchema =
-  mkParameterFeedbackRefusalSchema<TestInputType>(paramKeyEnum);
-type InferredParameterFeedbackRefusal = z.infer<typeof parameterFeedbackRefusalSchema>;
-type _TestParameterFeedbackRefusal1 = Expect<
+// ==================== ParameterValidationFailureReasons Schema Tests ====================
+const parameterValidationFailureReasonsSchema =
+  mkParameterValidationFailureReasonsSchema<TestInputType>(paramKeyEnum);
+type InferredParameterValidationFailureReasons = z.infer<
+  typeof parameterValidationFailureReasonsSchema
+>;
+type _TestParameterValidationFailureReasons1 = Expect<
   Equal<
-    InferredParameterFeedbackRefusal,
-    ParameterFeedbackRefusal<TestInputType, keyof TestInputType>
+    InferredParameterValidationFailureReasons,
+    ParameterValidationFailureReasons<TestInputType, keyof TestInputType>
   >
 >;
 
-// ==================== ParameterFeedback Schema Tests ====================
-const parameterFeedbackSchema = mkParameterFeedbackSchema<TestInputType, string, 'name'>(
-  testInputSchema.shape.name,
-  paramKeyEnum,
-);
-type InferredParameterFeedback = z.infer<typeof parameterFeedbackSchema>;
-type _TestParameterFeedback1 = Expect<
-  Equal<InferredParameterFeedback, ParameterFeedback<TestInputType, 'name'>>
+// ==================== ParameterValidationResult Schema Tests ====================
+const parameterValidationResultSchema = mkParameterValidationResultSchema<
+  TestInputType,
+  string,
+  'name'
+>(testInputSchema.shape.name, paramKeyEnum);
+type InferredParameterValidationResult = z.infer<typeof parameterValidationResultSchema>;
+type _TestParameterValidationResult1 = Expect<
+  Equal<InferredParameterValidationResult, ParameterValidationResult<TestInputType, 'name'>>
 >;
 
 // ==================== ValidationResults Schema Tests ====================
@@ -81,35 +86,33 @@ const validationResultsSchema = mkValidationResultsSchema<TestInputType>(
 );
 type InferredValidationResults = z.infer<typeof validationResultsSchema>;
 type ExpectedValidationResults = {
-  [K in keyof TestInputType & string]?: ParameterFeedback<TestInputType, K>;
+  [K in keyof TestInputType & string]?: ParameterValidationResult<TestInputType, K>;
 };
 type _TestValidationResults1 = Expect<Equal<InferredValidationResults, ExpectedValidationResults>>;
 
-// ==================== ToolCallAccepted Schema Tests ====================
-const toolCallAcceptedSchema = mkToolCallAcceptedSchema<TestOutputType>(testOutputSchema);
-type InferredToolCallAccepted = z.infer<typeof toolCallAcceptedSchema>;
-type _TestToolCallAccepted1 = Expect<
-  Equal<InferredToolCallAccepted, ToolCallAccepted<TestOutputType>>
+// ==================== ToolCallSuccess Schema Tests ====================
+const toolCallSuccessSchema = mkToolCallSuccessSchema<TestOutputType>(testOutputSchema);
+type InferredToolCallSuccess = z.infer<typeof toolCallSuccessSchema>;
+type _TestToolCallSuccess1 = Expect<
+  Equal<InferredToolCallSuccess, ToolCallSuccess<TestOutputType>>
 >;
 
 // Test case: when outputSchema is z.never(), value field should be omitted
-const toolCallAcceptedNeverSchema = mkToolCallAcceptedSchema<never>(z.never());
-type InferredToolCallAcceptedNever = z.infer<typeof toolCallAcceptedNeverSchema>;
-type _TestToolCallAcceptedNever1 = Expect<
-  Equal<InferredToolCallAcceptedNever, ToolCallAccepted<never>>
+const toolCallSuccessNeverSchema = mkToolCallSuccessSchema<never>(z.never());
+type InferredToolCallSuccessNever = z.infer<typeof toolCallSuccessNeverSchema>;
+type _TestToolCallSuccessNever1 = Expect<
+  Equal<InferredToolCallSuccessNever, ToolCallSuccess<never>>
 >;
 
-// ==================== ToolCallRejected Schema Tests ====================
-const toolCallRejectedSchema = mkToolCallRejectedSchema<TestInputType>(validationResultsSchema);
-type InferredToolCallRejected = z.infer<typeof toolCallRejectedSchema>;
-type _TestToolCallRejected1 = Expect<
-  Equal<InferredToolCallRejected, ToolCallRejected<TestInputType>>
->;
+// ==================== ToolCallFailure Schema Tests ====================
+const toolCallFailureSchema = mkToolCallFailureSchema<TestInputType>(validationResultsSchema);
+type InferredToolCallFailure = z.infer<typeof toolCallFailureSchema>;
+type _TestToolCallFailure1 = Expect<Equal<InferredToolCallFailure, ToolCallFailure<TestInputType>>>;
 
 // ==================== ToolCallResult Schema Tests ====================
 const toolCallResultSchema = mkToolCallResultSchema<TestInputType, TestOutputType>(
-  toolCallAcceptedSchema,
-  toolCallRejectedSchema,
+  toolCallSuccessSchema,
+  toolCallFailureSchema,
 );
 type InferredToolCallResult = z.infer<typeof toolCallResultSchema>;
 type _TestToolCallResult1 = Expect<

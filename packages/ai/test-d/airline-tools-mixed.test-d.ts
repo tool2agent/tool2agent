@@ -1,6 +1,6 @@
 import z from 'zod';
 import { toolBuilder } from '../src/builder.js';
-import { type ParameterFeedback } from '@tool2agent/types';
+import { type ParameterValidationResult } from '@tool2agent/types';
 
 // This type is used as fully validated input for the tool's execute function
 export const airlineBookingSchema = z.object({
@@ -27,7 +27,7 @@ builder.field('departure', {
   influencedBy: [],
   // @ts-expect-error unknown field is not allowed, even as option
   validate: async (value: string | undefined, context: { unknown?: string }) => {
-    return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+    return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
   },
 });
 
@@ -36,7 +36,7 @@ builder.field('departure', {
   influencedBy: [],
   // @ts-expect-error type of a static field is wrong
   validate: async (value: string | undefined, context: { date: number }) => {
-    return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+    return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
   },
 });
 
@@ -45,7 +45,7 @@ builder.field('departure', {
   influencedBy: [],
   // @ts-expect-error presence of a static field is wrong, must be optional
   validate: async (value: string | undefined, context: { passengers: number }) => {
-    return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+    return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
   },
 });
 
@@ -54,7 +54,7 @@ builder.field('departure', {
   requires: ['date'],
   influencedBy: [],
   validate: async (value: string | undefined, context: { passengers?: number }) => {
-    return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+    return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
   },
 });
 
@@ -67,7 +67,7 @@ builder
       value: string | undefined,
       context: { arrival?: string; passengers?: number; date: string },
     ) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
     },
   })
   // @ts-expect-error build is not available, missing `passengers` field specification
@@ -82,7 +82,7 @@ const bookFlight = builder
       value: string | undefined,
       context: { arrival?: string; passengers?: number; date: string },
     ) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
     },
   })
   .field('arrival', {
@@ -93,7 +93,7 @@ const bookFlight = builder
       value: string | undefined,
       context: { departure: string; passengers?: number; date: string },
     ) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'arrival'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'arrival'>;
     },
   })
   .build();

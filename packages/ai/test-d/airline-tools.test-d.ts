@@ -2,7 +2,7 @@ import z from 'zod';
 import { generateText } from 'ai';
 import { toolBuilder } from '../src/builder.js';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { type ParameterFeedback } from '@tool2agent/types';
+import { type ParameterValidationResult } from '@tool2agent/types';
 
 import 'dotenv/config';
 
@@ -31,7 +31,7 @@ const tool1 = toolBuilder({
     influencedBy: ['nonexistent'],
     description: 'City of departure',
     validate: async (value: string | undefined, context: { arrival?: string }) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'departure'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
     },
   })
   .field('arrival', {
@@ -40,7 +40,7 @@ const tool1 = toolBuilder({
     description: 'City of arrival',
     // @ts-expect-error value must be string | undefined
     validate: async (value: null | undefined, context: { departure: string; date?: string }) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'arrival'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'arrival'>;
     },
   })
   .field('date', {
@@ -52,7 +52,7 @@ const tool1 = toolBuilder({
       value: string | undefined,
       context: { departure: string; arrival: string; passengers?: number },
     ) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'date'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'date'>;
     },
   });
 
@@ -68,7 +68,7 @@ const bookFlight = tool1
       value: number | undefined,
       context: { departure: string; arrival: string; date: string },
     ) => {
-      return {} as any as ParameterFeedback<AirlineBooking, 'passengers'>;
+      return {} as any as ParameterValidationResult<AirlineBooking, 'passengers'>;
     },
   })
   .build();

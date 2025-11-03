@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import { z, type ZodType } from 'zod';
 
 import {
-  mkFreeFormFeedbackSchema,
+  mkFeedbackAndInstructionsSchema,
   mkAcceptableValuesSchema,
-  mkParameterFeedbackRefusalSchema,
-  mkParameterFeedbackSchema,
+  mkParameterValidationFailureReasonsSchema,
+  mkParameterValidationResultSchema,
   mkValidationResultsSchema,
-  mkToolCallAcceptedSchema,
-  mkToolCallRejectedSchema,
+  mkToolCallSuccessSchema,
+  mkToolCallFailureSchema,
   mkToolCallResultSchema,
   mkTool2AgentSchema,
-  mkSingleParameterFeedbackSchema,
+  mkValueFailureFeedbackSchema,
 } from '../src/index.js';
 import { nonEmptyArray } from '../src/schema-tools.js';
 
@@ -60,8 +60,8 @@ test('helper functions', async t => {
 });
 
 test('basic schema builders', async t => {
-  await t.test('mkFreeFormFeedbackSchema', () => {
-    const s = mkFreeFormFeedbackSchema();
+  await t.test('mkFeedbackAndInstructionsSchema', () => {
+    const s = mkFeedbackAndInstructionsSchema();
     expectParseOK(s, {});
     expectParseOK(s, { feedback: ['x'] });
     expectParseOK(s, { instructions: ['do Y'] });
@@ -80,9 +80,9 @@ test('basic schema builders', async t => {
 });
 
 test('parameter feedback schemas', async t => {
-  await t.test('mkParameterFeedbackRefusalSchema (AtLeastOne of reasons/required)', () => {
+  await t.test('mkParameterValidationFailureReasonsSchema (AtLeastOne of reasons/required)', () => {
     const keyEnum = createKeyEnum(inputSchema);
-    const s = mkParameterFeedbackRefusalSchema(keyEnum);
+    const s = mkParameterValidationFailureReasonsSchema(keyEnum);
     expectParseOK(s, { problems: ['bad format'] });
     expectParseOK(s, { requiresValidParameters: ['name'] });
     expectParseOK(s, { problems: ['x'], requiresValidParameters: ['age'] });
@@ -92,10 +92,10 @@ test('parameter feedback schemas', async t => {
   });
 
   await t.test(
-    'mkParameterFeedbackRefusalSchema - requiresValidParameters only accepts valid keys',
+    'mkParameterValidationFailureReasonsSchema - requiresValidParameters only accepts valid keys',
     () => {
       const keyEnum = createKeyEnum(inputSchema);
-      const s = mkParameterFeedbackRefusalSchema(keyEnum);
+      const s = mkParameterValidationFailureReasonsSchema(keyEnum);
       // Valid keys from inputSchema
       expectParseOK(s, { requiresValidParameters: ['name'] });
       expectParseOK(s, { requiresValidParameters: ['age'] });
@@ -108,9 +108,9 @@ test('parameter feedback schemas', async t => {
     },
   );
 
-  await t.test('mkParameterFeedbackSchema valid and invalid branches', () => {
+  await t.test('mkParameterValidationResultSchema valid and invalid branches', () => {
     const keyEnum = createKeyEnum(inputSchema);
-    const namePf = mkParameterFeedbackSchema<z.infer<typeof inputSchema>, string, 'name'>(
+    const namePf = mkParameterValidationResultSchema<z.infer<typeof inputSchema>, string, 'name'>(
       inputSchema.shape.name,
       keyEnum,
     );
@@ -208,9 +208,9 @@ test('parameter feedback schemas', async t => {
     });
   });
 
-  await t.test('mkSingleParameterFeedbackSchema - comprehensive coverage', () => {
+  await t.test('mkValueFailureFeedbackSchema - comprehensive coverage', () => {
     const stringInputSchema = z.string();
-    const singlePfSchema = mkSingleParameterFeedbackSchema(stringInputSchema);
+    const singlePfSchema = mkValueFailureFeedbackSchema(stringInputSchema);
     type SinglePfType = z.infer<typeof singlePfSchema>;
 
     // Required field: problems
@@ -371,8 +371,8 @@ test('validation results schemas', async t => {
 });
 
 test('tool call schemas', async t => {
-  await t.test('mkToolCallAcceptedSchema', () => {
-    const acc = mkToolCallAcceptedSchema(outputSchema);
+  await t.test('mkToolCallSuccessSchema', () => {
+    const acc = mkToolCallSuccessSchema(outputSchema);
     // Objects with keys are merged directly (no value wrapper)
     expectParseOK(acc, { ok: true, id: '1', createdAt: 'now' });
     expectParseOK(acc, {
@@ -386,8 +386,8 @@ test('tool call schemas', async t => {
     expectParseFail(acc, { ok: true, id: '1', createdAt: 'now', feedback: [] });
   });
 
-  await t.test('mkToolCallAcceptedSchema with z.never() - value field omitted', () => {
-    const accNever = mkToolCallAcceptedSchema(z.never());
+  await t.test('mkToolCallSuccessSchema with z.never() - value field omitted', () => {
+    const accNever = mkToolCallSuccessSchema(z.never());
     // Should accept objects without value field
     expectParseOK(accNever, { ok: true });
     expectParseOK(accNever, { ok: true, feedback: ['done'] });
@@ -402,8 +402,8 @@ test('tool call schemas', async t => {
     expectParseFail(accNever, { ok: true, value: undefined });
   });
 
-  await t.test('mkToolCallAcceptedSchema with z.object({}) - value field omitted', () => {
-    const accEmpty = mkToolCallAcceptedSchema(z.object({}));
+  await t.test('mkToolCallSuccessSchema with z.object({}) - value field omitted', () => {
+    const accEmpty = mkToolCallSuccessSchema(z.object({}));
     // Should accept objects without value field (same as z.never())
     expectParseOK(accEmpty, { ok: true });
     expectParseOK(accEmpty, { ok: true, feedback: ['done'] });
@@ -419,8 +419,8 @@ test('tool call schemas', async t => {
     expectParseFail(accEmpty, { ok: true, value: undefined });
   });
 
-  await t.test('mkToolCallAcceptedSchema with object with keys - keys merged directly', () => {
-    const accWithKeys = mkToolCallAcceptedSchema(outputSchema);
+  await t.test('mkToolCallSuccessSchema with object with keys - keys merged directly', () => {
+    const accWithKeys = mkToolCallSuccessSchema(outputSchema);
     // Should accept objects with keys merged directly (no value wrapper)
     expectParseOK(accWithKeys, { ok: true, id: '1', createdAt: 'now' });
     expectParseOK(accWithKeys, {
@@ -445,10 +445,10 @@ test('tool call schemas', async t => {
     expectParseFail(accWithKeys, { ok: true, id: '1', createdAt: 'now', feedback: [] });
   });
 
-  await t.test('mkToolCallRejectedSchema', () => {
+  await t.test('mkToolCallFailureSchema', () => {
     const keyEnum = createKeyEnum(inputSchema);
     const vr = mkValidationResultsSchema(inputSchema, keyEnum);
-    const rej = mkToolCallRejectedSchema(vr);
+    const rej = mkToolCallFailureSchema(vr);
 
     // valid with validationResults - need full ParameterFeedback structure
     expectParseOK(rej, {
@@ -497,10 +497,10 @@ test('tool call schemas', async t => {
   });
 
   await t.test('mkToolCallResultSchema union', () => {
-    const acc = mkToolCallAcceptedSchema(outputSchema);
+    const acc = mkToolCallSuccessSchema(outputSchema);
     const keyEnum = createKeyEnum(inputSchema);
     const vr = mkValidationResultsSchema(inputSchema, keyEnum);
-    const rej = mkToolCallRejectedSchema(vr);
+    const rej = mkToolCallFailureSchema(vr);
     const res = mkToolCallResultSchema(acc, rej);
 
     expectParseOK(res, { ok: true, id: '1', createdAt: 'now' });
@@ -572,8 +572,8 @@ test('end-to-end integration', async t => {
 });
 
 test('type inference tests', async t => {
-  await t.test('ToolCallAccepted with type inference', () => {
-    const acceptedSchema = mkToolCallAcceptedSchema(outputSchema);
+  await t.test('ToolCallSuccess with type inference', () => {
+    const acceptedSchema = mkToolCallSuccessSchema(outputSchema);
     type AcceptedType = z.infer<typeof acceptedSchema>;
 
     const accepted: AcceptedType = {
@@ -598,10 +598,10 @@ test('type inference tests', async t => {
     expectParseFail(acceptedSchema, invalidAcceptedTyped);
   });
 
-  await t.test('ToolCallRejected with type inference', () => {
+  await t.test('ToolCallFailure with type inference', () => {
     const keyEnum = createKeyEnum(inputSchema);
     const vrSchema = mkValidationResultsSchema(inputSchema, keyEnum);
-    const rejectedSchema = mkToolCallRejectedSchema(vrSchema);
+    const rejectedSchema = mkToolCallFailureSchema(vrSchema);
     type RejectedType = z.infer<typeof rejectedSchema>;
 
     const rejectedWithValidation: RejectedType = {
@@ -633,12 +633,13 @@ test('type inference tests', async t => {
     expectParseFail(rejectedSchema, invalidRejected);
   });
 
-  await t.test('ParameterFeedback with type inference', () => {
+  await t.test('ParameterValidationResult with type inference', () => {
     const keyEnum = createKeyEnum(inputSchema);
-    const paramSchema = mkParameterFeedbackSchema<z.infer<typeof inputSchema>, string, 'name'>(
-      inputSchema.shape.name,
-      keyEnum,
-    );
+    const paramSchema = mkParameterValidationResultSchema<
+      z.infer<typeof inputSchema>,
+      string,
+      'name'
+    >(inputSchema.shape.name, keyEnum);
     type ParamFeedbackType = z.infer<typeof paramSchema>;
 
     const validParam: ParamFeedbackType = {

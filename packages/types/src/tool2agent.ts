@@ -4,14 +4,14 @@ import { AtLeastOne, AtMostOne, NonEmptyArray } from './types.js';
 /** The outermost type that characterizes the outcome of a tool call.
  */
 export type ToolCallResult<InputType, OutputType> =
-  | ToolCallAccepted<OutputType>
-  | ToolCallRejected<InputType>;
+  | ToolCallSuccess<OutputType>
+  | ToolCallFailure<InputType>;
 
 /**
  * Accepted tool call.
  * Must contain ok: true, the rest of the fields, and (optionally) feedback and instructions.
  */
-export type ToolCallAccepted<OutputType> = {
+export type ToolCallSuccess<OutputType> = {
   ok: true;
 } &
   // If OutputType is never, we don't allow value fields at all.
@@ -24,25 +24,21 @@ export type ToolCallAccepted<OutputType> = {
       ? {
           value?: never; // Explicitly disallow value property
         }
-      : // If OutputType is {} (plain empty object), treat it like never
-        [OutputType] extends [{}]
-        ? // If OutputType has keys, use it directly (i.e. object keys are placed alongside ok:true)
-          FlattenOrWrapInValueField<OutputType>
-        : // If OutputType is a record, we use it directly
-          FlattenOrWrapInValueField<OutputType>) &
-  FreeFormFeedback;
+      : // If OutputType is a record, we use it directly
+        OutputAsRecord<OutputType>) &
+  FeedbackAndInstructions;
 
 /**
  * If T is a record, we use it directly.
  * Otherwise, we wrap it in a value field.
  */
-type FlattenOrWrapInValueField<T> = [T] extends [Record<string, unknown>]
+type OutputAsRecord<T> = [T] extends [Record<string, unknown>]
   ? T
   : {
       value: T;
     };
 
-export type FreeFormFeedback = {
+export type FeedbackAndInstructions = {
   /** Freeform feedback for the tool call. */
   feedback?: NonEmptyArray<string>;
   /** Freeform instructions for the agent in response to the tool call.
@@ -59,47 +55,57 @@ export type FreeFormFeedback = {
  * This requirement naturally guides the developer towards building better feedback systems,
  * because the type system will not allow omitting validation results.
  */
-export type ToolCallRejected<InputType> = {
+export type ToolCallFailure<InputType> = {
   ok: false;
-} & TypedParametersFeedback<InputType> &
-  FreeFormFeedback;
+} & FailureFeedback<InputType> &
+  FeedbackAndInstructions;
 
-export type TypedParametersFeedback<InputType> =
+export type FailureFeedback<InputType> =
   /** If InputType is a record, we can provide feedback for its fields. */
   InputType extends Record<string, unknown>
     ? /** We require at least one actionable validation result to be present. */
-      AtLeastOne<{
-        /**
-         * not every parameter in the input type is required to be present,
-         * but we require at least one to ensure the LLM can make some progress
-         * on refining input.
-         */
-        validationResults: AtLeastOne<{
-          [ParamKey in keyof InputType]?: ParameterFeedback<InputType, ParamKey>;
-        }>;
-        problems: NonEmptyArray<string>;
-      }>
+      RecordFailureFeedback<InputType>
     : /** If InputType is not a record, we provide feedback for the entire input.
        * In this case, `problems` field becomes required, and `validationResults` is not allowed,
        * because there is only a single field.
        * We do not include `requiresValidParameters` because it is not applicable to non-record inputs,
        * since it references other record fields.
        */
-      SingleParameterFeedback<InputType>;
+      ValueFailureFeedback<InputType>;
 
-export type ParameterFeedback<
+export type RecordFailureFeedback<InputType extends Record<string, unknown>> = AtLeastOne<{
+  /**
+   * not every parameter in the input type is required to be present,
+   * but we require at least one to ensure the LLM can make some progress
+   * on refining input.
+   */
+  validationResults: AtLeastOne<{
+    [ParamKey in keyof InputType]?: ParameterValidationResult<InputType, ParamKey>;
+  }>;
+  problems: NonEmptyArray<string>;
+}>;
+
+export type ParameterValidationResult<
   InputType extends Record<string, unknown>,
   ParamKey extends keyof InputType,
-> = ParameterFeedbackCommon<InputType[ParamKey]> & ParameterFeedbackVariants<InputType, ParamKey>;
+> = CommonFailureFeedback<InputType[ParamKey]> &
+  (
+    | {
+        valid: true;
+      }
+    | ({
+        valid: false;
+      } & ParameterValidationFailureReasons<InputType, ParamKey>)
+  );
 
-export type SingleParameterFeedback<InputType> = {
+export type ValueFailureFeedback<InputType> = {
   problems: NonEmptyArray<string>;
-} & ParameterFeedbackCommon<InputType>;
+} & CommonFailureFeedback<InputType>;
 
 /**
  * Feedback for a single tool call parameter.
  */
-export type ParameterFeedbackCommon<T> = {
+export type CommonFailureFeedback<T> = {
   /** The tooling may normalize values to a canonical form */
   normalizedValue?: T;
   /**
@@ -108,7 +114,7 @@ export type ParameterFeedbackCommon<T> = {
    */
   dynamicParameterSchema?: ZodType<T>;
 } & AcceptableValues<T> &
-  FreeFormFeedback;
+  FeedbackAndInstructions;
 
 /** Provides feedback that suggests acceptable values for the parameter. */
 export type AcceptableValues<T> = AtMostOne<{
@@ -121,20 +127,8 @@ export type AcceptableValues<T> = AtMostOne<{
   suggestedValues: NonEmptyArray<T>;
 }>;
 
-/** Validation result for a single tool call input object field. */
-export type ParameterFeedbackVariants<
-  InputType extends Record<string, unknown>,
-  ParamKey extends keyof InputType,
-> =
-  | {
-      valid: true;
-    }
-  | ({
-      valid: false;
-    } & ParameterFeedbackRefusal<InputType, ParamKey>);
-
 /** Refusal result for a single tool call input object field. Mandates at least one justification for the refusal. */
-export type ParameterFeedbackRefusal<
+export type ParameterValidationFailureReasons<
   InputType extends Record<string, unknown>,
   ParamKey extends keyof InputType,
 > = AtLeastOne<{

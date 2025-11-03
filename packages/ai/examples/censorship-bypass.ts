@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { z } from 'zod';
 import { Tool2Agent, tool2agent } from '../src/index.js';
-import type { ToolCallResult, ToolCallRejected, ToolCallAccepted } from '@tool2agent/types';
+import type { ToolCallResult, ToolCallFailure, ToolCallSuccess } from '@tool2agent/types';
 import { generateText, stepCountIs } from 'ai';
 import { openrouter } from '@openrouter/ai-sdk-provider';
 
@@ -82,7 +82,7 @@ const searchTool = tool2agent({
 
     // Check for censorship
     if (checkCensorship(q)) {
-      const response: ToolCallRejected<SearchToolInput> = {
+      const response: ToolCallFailure<SearchToolInput> = {
         ok: false,
         validationResults: {
           q: {
@@ -100,7 +100,7 @@ const searchTool = tool2agent({
     const docs = searchDataset(q, DATASET);
     console.log('execute params:', { q }, 'docs:\n', '- ' + docs.join('\n- '));
 
-    const response: ToolCallAccepted<SearchToolOutput> = {
+    const response: ToolCallSuccess<SearchToolOutput> = {
       ok: true,
       results: docs,
     };

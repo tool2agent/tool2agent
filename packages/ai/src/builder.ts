@@ -1,7 +1,7 @@
 import z from 'zod';
 import { tool, ToolCallOptions } from 'ai';
 import { validate, type FieldSpec, type ToolSpec, validateToolSpec } from './validation.js';
-import { type ParameterFeedback, type ToolCallResult } from '@tool2agent/types';
+import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
 import { Tool2Agent } from './tool2agent.js';
 
 export type ToolBuilderParams<
@@ -59,7 +59,7 @@ export type ToolFieldConfig<
     context: Pick<InputType, Requires[number]> &
       Partial<Pick<InputType, Influences[number]>> &
       Pick<InputType, StaticFields>,
-  ) => Promise<ParameterFeedback<InputType, K>>;
+  ) => Promise<ParameterValidationResult<InputType, K>>;
 };
 
 export const HiddenSpecSymbol = Symbol('HiddenSpec');

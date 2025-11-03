@@ -1,15 +1,13 @@
 import { type ZodType, z, ZodNever, ZodObject } from 'zod';
 import type {
   ToolCallResult,
-  FreeFormFeedback,
+  FeedbackAndInstructions,
   AcceptableValues,
-  ParameterFeedbackCommon,
-  ParameterFeedbackVariants,
-  ParameterFeedback,
-  ToolCallAccepted,
-  ToolCallRejected,
-  ParameterFeedbackRefusal,
-  SingleParameterFeedback,
+  ParameterValidationResult,
+  ToolCallSuccess,
+  ToolCallFailure,
+  ParameterValidationFailureReasons,
+  ValueFailureFeedback,
 } from '@tool2agent/types';
 import {
   nonEmptyArray,
@@ -61,7 +59,7 @@ const allowedValuesDescription =
 
 const suggestedValuesDescription = 'Non-exhaustive list of acceptable values. Cannot be empty.';
 
-export function mkFreeFormFeedbackSchema(): z.ZodType<FreeFormFeedback> {
+export function mkFeedbackAndInstructionsSchema(): z.ZodType<FeedbackAndInstructions> {
   return z
     .object({
       feedback: feedbackSchema,
@@ -79,9 +77,11 @@ export function mkAcceptableValuesSchema<T extends ZodType<unknown>>(
   }) as z.ZodType<AcceptableValues<z.infer<T>>>;
 }
 
-export function mkParameterFeedbackRefusalSchema<InputType extends Record<string, unknown>>(
+export function mkParameterValidationFailureReasonsSchema<
+  InputType extends Record<string, unknown>,
+>(
   paramKeyEnum: z.ZodEnum<Record<string, string>> | null,
-): z.ZodType<ParameterFeedbackRefusal<InputType, keyof InputType>> {
+): z.ZodType<ParameterValidationFailureReasons<InputType, keyof InputType>> {
   const branches: Record<string, ZodType<unknown>> = {
     problems: problemsRefusalSchema,
   };
@@ -90,13 +90,15 @@ export function mkParameterFeedbackRefusalSchema<InputType extends Record<string
       'Parameters that must be valid before this parameter can be validated. Must be valid keys from the input schema.',
     );
   }
-  return atLeastOne(branches) as z.ZodType<ParameterFeedbackRefusal<InputType, keyof InputType>>;
+  return atLeastOne(branches) as z.ZodType<
+    ParameterValidationFailureReasons<InputType, keyof InputType>
+  >;
 }
 
 /**
- * Tagged version of mkParameterFeedbackRefusalSchema
+ * Tagged version of mkParameterValidationFailureReasonsSchema
  */
-function mkParameterFeedbackRefusalSchemaTagged(
+function mkParameterValidationFailureReasonsSchemaTagged(
   paramKeyEnum: z.ZodEnum<Record<string, string>> | null,
 ): TaggedUnionSchema<
   z.ZodUnion<
@@ -117,14 +119,14 @@ function mkParameterFeedbackRefusalSchemaTagged(
   return atLeastOneTagged(branches);
 }
 
-export function mkParameterFeedbackSchema<
+export function mkParameterValidationResultSchema<
   InputType extends Record<string, unknown>,
   ValueT,
   ParamKey extends keyof InputType = keyof InputType,
 >(
   valueSchema: ZodType<ValueT> | undefined,
   paramKeyEnum: z.ZodEnum<Record<string, string>> | null,
-): z.ZodType<ParameterFeedbackCommon<ValueT> & ParameterFeedbackVariants<InputType, ParamKey>> {
+): z.ZodType<ParameterValidationResult<InputType, ParamKey>> {
   const baseValueSchema = valueSchema ?? z.unknown();
 
   // Build common schema: normalizedValue, dynamicParameterSchema, feedback, instructions
@@ -143,8 +145,8 @@ export function mkParameterFeedbackSchema<
     suggestedValues: nonEmptyArray(baseValueSchema).describe(suggestedValuesDescription),
   });
 
-  // Build ParameterFeedbackRefusal union schema (AtLeastOne) - tagged
-  const refusalSchemaTagged = mkParameterFeedbackRefusalSchemaTagged(paramKeyEnum);
+  // Build ParameterValidationFailureReasons union schema (AtLeastOne) - tagged
+  const refusalSchemaTagged = mkParameterValidationFailureReasonsSchemaTagged(paramKeyEnum);
 
   // Branch 1: valid: true
   // Intersect: { valid: true } & common & AcceptableValues union
@@ -158,7 +160,7 @@ export function mkParameterFeedbackSchema<
   const validTrueTagged = intersectSchemas(validTrueBase, acceptableValuesSchemaTagged);
 
   // Branch 2: valid: false
-  // Intersect: { valid: false } & common & AcceptableValues union & ParameterFeedbackRefusal union
+  // Intersect: { valid: false } & common & AcceptableValues union & ParameterValidationFailureReasons union
   // First combine valid discriminator with common schema using extend
   const validFalseBase = tagObject(
     z
@@ -201,18 +203,16 @@ export function mkParameterFeedbackSchema<
     z.ZodObject<Record<string, ZodType<unknown>>>,
     z.ZodObject<Record<string, ZodType<unknown>>>,
     ...z.ZodObject<Record<string, ZodType<unknown>>>[],
-  ]) as unknown as z.ZodType<
-    ParameterFeedbackCommon<ValueT> & ParameterFeedbackVariants<InputType, ParamKey>
-  >;
+  ]) as unknown as z.ZodType<ParameterValidationResult<InputType, ParamKey>>;
 }
 
 /**
- * Creates a Zod schema for SingleParameterFeedback.
+ * Creates a Zod schema for ValueFailureFeedback.
  * Used for non-record input types where feedback is provided for the entire input value.
  */
-export function mkSingleParameterFeedbackSchema<InputType>(
+export function mkValueFailureFeedbackSchema<InputType>(
   inputSchema: ZodType<InputType>,
-): z.ZodType<SingleParameterFeedback<InputType>> {
+): z.ZodType<ValueFailureFeedback<InputType>> {
   // Build common schema: normalizedValue, dynamicParameterSchema, feedback, instructions
   const commonSchema = z.object({
     normalizedValue: inputSchema.optional().describe(normalizedValueDescription),
@@ -241,47 +241,47 @@ export function mkSingleParameterFeedbackSchema<InputType>(
   const resultTagged = intersectSchemas(problemsSchemaTagged, acceptableValuesSchemaTagged);
 
   // Extract the final schema (result is always a union from intersectSchemas)
-  return untag(resultTagged) as z.ZodType<SingleParameterFeedback<InputType>>;
+  return untag(resultTagged) as z.ZodType<ValueFailureFeedback<InputType>>;
 }
 
 export function mkValidationResultsSchema<InputType extends Record<string, unknown>>(
   inputSchema: z.ZodObject<Record<string, ZodType<unknown>>>,
   paramKeyEnum: z.ZodEnum<Record<string, string>> | null,
 ): z.ZodType<{
-  [K in keyof InputType & string]?: ParameterFeedback<InputType, K>;
+  [K in keyof InputType & string]?: ParameterValidationResult<InputType, K>;
 }> {
   const shape = inputSchema.shape;
   const keys = Object.keys(shape) as (keyof InputType & string)[];
   if (keys.length === 0)
     return z.object({}).strict() as unknown as z.ZodType<{
-      [K in keyof InputType & string]?: ParameterFeedback<InputType, K>;
+      [K in keyof InputType & string]?: ParameterValidationResult<InputType, K>;
     }>;
   const perKey: Partial<{
-    [K in keyof InputType & string]: z.ZodType<ParameterFeedback<InputType, K>>;
+    [K in keyof InputType & string]: z.ZodType<ParameterValidationResult<InputType, K>>;
   }> = {};
   for (const key of keys) {
     const valueSchema = shape[key as string] as ZodType<InputType[typeof key]>;
-    perKey[key] = mkParameterFeedbackSchema<InputType, InputType[typeof key], typeof key>(
+    perKey[key] = mkParameterValidationResultSchema<InputType, InputType[typeof key], typeof key>(
       valueSchema,
       paramKeyEnum,
-    ) as z.ZodType<ParameterFeedback<InputType, typeof key>>;
+    ) as z.ZodType<ParameterValidationResult<InputType, typeof key>>;
   }
   return atLeastOne(
     perKey as {
-      [K in keyof InputType & string]: z.ZodType<ParameterFeedback<InputType, K>>;
+      [K in keyof InputType & string]: z.ZodType<ParameterValidationResult<InputType, K>>;
     },
   ) as unknown as z.ZodType<{
-    [K in keyof InputType & string]?: ParameterFeedback<InputType, K>;
+    [K in keyof InputType & string]?: ParameterValidationResult<InputType, K>;
   }>;
 }
 
-export function mkToolCallAcceptedSchema<OutputType>(
+export function mkToolCallSuccessSchema<OutputType>(
   outputSchema: ZodType<OutputType>,
-): z.ZodType<ToolCallAccepted<OutputType>> {
+): z.ZodType<ToolCallSuccess<OutputType>> {
   // Check if outputSchema is z.never() using instanceof.
   //
   // NOTE: There is a discrepancy between type-level and runtime checks:
-  // - Type-level: ToolCallAccepted<OutputType> checks `OutputType extends never`
+  // - Type-level: ToolCallSuccess<OutputType> checks `OutputType extends never`
   //   which matches any schema TypeScript infers as `never`
   // - Runtime: We check `instanceof ZodNever` which only matches z.never()
   //
@@ -310,7 +310,7 @@ export function mkToolCallAcceptedSchema<OutputType>(
   // 4. otherwise -> wrap in value field
   if (isNever || isEmptyObject) {
     // No value field - return base object only
-    return z.object(baseObject).strict() as unknown as z.ZodType<ToolCallAccepted<OutputType>>;
+    return z.object(baseObject).strict() as unknown as z.ZodType<ToolCallSuccess<OutputType>>;
   } else if (isObject) {
     // Object with keys - merge the object's shape directly into the result
     return z
@@ -318,7 +318,7 @@ export function mkToolCallAcceptedSchema<OutputType>(
         ...baseObject,
         ...outputSchema.shape,
       })
-      .strict() as unknown as z.ZodType<ToolCallAccepted<OutputType>>;
+      .strict() as unknown as z.ZodType<ToolCallSuccess<OutputType>>;
   } else {
     // Other types - wrap in value field
     return z
@@ -326,19 +326,19 @@ export function mkToolCallAcceptedSchema<OutputType>(
         ...baseObject,
         value: outputSchema,
       })
-      .strict() as unknown as z.ZodType<ToolCallAccepted<OutputType>>;
+      .strict() as unknown as z.ZodType<ToolCallSuccess<OutputType>>;
   }
 }
 
-export function mkToolCallRejectedSchema<InputType extends Record<string, unknown>>(
+export function mkToolCallFailureSchema<InputType extends Record<string, unknown>>(
   validationResultsSchema: z.ZodType<
     | {
-        [K in keyof InputType & string]?: ParameterFeedback<InputType, K>;
+        [K in keyof InputType & string]?: ParameterValidationResult<InputType, K>;
       }
-    | ParameterFeedback<{ value: InputType }, 'value'>
+    | ParameterValidationResult<{ value: InputType }, 'value'>
   >,
-): z.ZodType<ToolCallRejected<InputType>> {
-  // Build common schema: ok: false & FreeFormFeedback
+): z.ZodType<ToolCallFailure<InputType>> {
+  // Build common schema: ok: false & FeedbackAndInstructions
   const commonSchema = z
     .object({
       ok: z.literal(false),
@@ -360,12 +360,12 @@ export function mkToolCallRejectedSchema<InputType extends Record<string, unknow
   const resultTagged = intersectSchemas(commonSchemaTagged, atLeastOneSchemaTagged);
 
   // Extract the final schema (result is always a union from intersectSchemas)
-  return untag(resultTagged) as z.ZodType<ToolCallRejected<InputType>>;
+  return untag(resultTagged) as z.ZodType<ToolCallFailure<InputType>>;
 }
 
 export function mkToolCallResultSchema<InputType extends Record<string, unknown>, OutputT>(
-  accepted: z.ZodType<ToolCallAccepted<OutputT>>,
-  rejected: z.ZodType<ToolCallRejected<InputType>>,
+  accepted: z.ZodType<ToolCallSuccess<OutputT>>,
+  rejected: z.ZodType<ToolCallFailure<InputType>>,
 ): z.ZodType<ToolCallResult<InputType, OutputT>> {
   return z.union([accepted, rejected]) as z.ZodType<ToolCallResult<InputType, OutputT>>;
 }
@@ -399,9 +399,9 @@ export function mkTool2AgentSchema<S extends ZodType<unknown>, OutputType>(
   // Check if inputSchema is a ZodObject (record case)
   const isRecord = inputSchema instanceof ZodObject;
 
-  const accepted = mkToolCallAcceptedSchema<OutputType>(outputSchema);
+  const accepted = mkToolCallSuccessSchema<OutputType>(outputSchema);
 
-  let rejected: z.ZodType<ToolCallRejected<InputType & Record<string, unknown>>>;
+  let rejected: z.ZodType<ToolCallFailure<InputType & Record<string, unknown>>>;
 
   if (isRecord) {
     // Record case: use field-based validation
@@ -415,17 +415,17 @@ export function mkTool2AgentSchema<S extends ZodType<unknown>, OutputType>(
       inputSchema as z.ZodObject<Record<string, ZodType<unknown>>>,
       paramKeyEnum,
     );
-    rejected = mkToolCallRejectedSchema<InputType & Record<string, unknown>>(validationResults);
+    rejected = mkToolCallFailureSchema<InputType & Record<string, unknown>>(validationResults);
   } else {
-    // Non-record case: use SingleParameterFeedback directly
-    // For non-records, TypedParametersFeedback becomes SingleParameterFeedback<InputType>
-    // ToolCallRejected<InputType> = { ok: false } & SingleParameterFeedback<InputType> & FreeFormFeedback
-    // SingleParameterFeedback already includes feedback and instructions, so we just need to add ok: false
-    const singleParameterFeedbackSchema = mkSingleParameterFeedbackSchema<InputType>(
+    // Non-record case: use ValueFailureFeedback directly
+    // For non-records, FailureFeedback becomes ValueFailureFeedback<InputType>
+    // ToolCallFailure<InputType> = { ok: false } & ValueFailureFeedback<InputType> & FeedbackAndInstructions
+    // ValueFailureFeedback already includes feedback and instructions, so we just need to add ok: false
+    const valueFailureFeedbackSchema = mkValueFailureFeedbackSchema<InputType>(
       inputSchema as ZodType<InputType>,
     );
 
-    // mkSingleParameterFeedbackSchema returns a union (from intersectSchemas), so we need to
+    // mkValueFailureFeedbackSchema returns a union (from intersectSchemas), so we need to
     // intersect it with the ok: false field using tagged schemas
     const okSchema = tagObject(
       z
@@ -436,15 +436,15 @@ export function mkTool2AgentSchema<S extends ZodType<unknown>, OutputType>(
     );
 
     // Wrap the union in a tagged schema for intersection
-    // mkSingleParameterFeedbackSchema always returns a union from intersectSchemas
-    const singlePfTagged: TaggedSchema<any> = tagUnion(
-      singleParameterFeedbackSchema as z.ZodUnion<any>,
-      (singleParameterFeedbackSchema as z.ZodUnion<any>).options,
+    // mkValueFailureFeedbackSchema always returns a union from intersectSchemas
+    const valueFfTagged: TaggedSchema<any> = tagUnion(
+      valueFailureFeedbackSchema as z.ZodUnion<any>,
+      (valueFailureFeedbackSchema as z.ZodUnion<any>).options,
     );
 
-    const rejectedTagged = intersectSchemas(okSchema, singlePfTagged);
+    const rejectedTagged = intersectSchemas(okSchema, valueFfTagged);
     rejected = untag(rejectedTagged) as z.ZodType<
-      ToolCallRejected<InputType & Record<string, unknown>>
+      ToolCallFailure<InputType & Record<string, unknown>>
     >;
   }
 

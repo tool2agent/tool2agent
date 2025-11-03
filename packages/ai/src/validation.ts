@@ -1,5 +1,5 @@
 import { detectRequiresCycles, toposortFields } from './graph.js';
-import { type ParameterFeedback, type NonEmptyArray } from '@tool2agent/types';
+import { type ParameterValidationResult, type NonEmptyArray } from '@tool2agent/types';
 import { isDeepStrictEqual } from 'util';
 import { log, delayedLog } from './internal-logger.js';
 import type { DynamicInputType } from './builder.js';
@@ -13,7 +13,7 @@ export type ToolCallAccepted<InputType extends Record<string, unknown>> = {
 
 export type ToolCallRejected<InputType extends Record<string, unknown>> = {
   status: 'rejected';
-  validationResults: { [K in keyof InputType]: ParameterFeedback<InputType, K> };
+  validationResults: { [K in keyof InputType]: ParameterValidationResult<InputType, K> };
 };
 
 export type ToolCallResult<InputType extends Record<string, unknown>> =
@@ -40,7 +40,7 @@ export type FieldSpec<
     context: Pick<InputType, Requires[number]> &
       Partial<Pick<InputType, Influences[number]>> &
       Pick<InputType, StaticFields>,
-  ) => Promise<ParameterFeedback<InputType, Key>>;
+  ) => Promise<ParameterValidationResult<InputType, Key>>;
 };
 
 export type ToolSpec<InputType extends Record<string, unknown>> = {
@@ -78,7 +78,7 @@ export async function validate<
   loose: DynamicInputType<InputType, DynamicFields>,
 ): Promise<ToolCallResult<InputType>> {
   // Local type aliases for cleaner types
-  type ValidationMap = { [P in keyof InputType]?: ParameterFeedback<InputType, P> };
+  type ValidationMap = { [P in keyof InputType]?: ParameterValidationResult<InputType, P> };
 
   const dynamicFields = Object.keys(spec) as DynamicFields[];
   const dynamicSet = new Set(dynamicFields);
@@ -109,7 +109,7 @@ export async function validate<
       validationResults[dynamicField] = {
         valid: false,
         requiresValidParameters: contextResult.missingRequirements,
-      } as ParameterFeedback<InputType, Key>;
+      } as ParameterValidationResult<InputType, Key>;
       continue;
     }
 
@@ -128,7 +128,7 @@ export async function validate<
         JSON.stringify(processed.validationResult, null, 2),
     ]);
 
-    validationResults[dynamicField] = processed.validationResult as ParameterFeedback<
+    validationResults[dynamicField] = processed.validationResult as ParameterValidationResult<
       InputType,
       Key
     >;
@@ -261,19 +261,19 @@ function processValidationResult<
 >(
   fieldKey: K,
   value: InputType[K] | undefined,
-  validationResult: ParameterFeedback<InputType, K>,
+  validationResult: ParameterValidationResult<InputType, K>,
 ): {
-  validationResult: ParameterFeedback<InputType, K>;
+  validationResult: ParameterValidationResult<InputType, K>;
   validFields: Partial<InputType>;
 } {
   // Create a copy of validationResult, removing normalizedValue if it's equal to the original value (no-op normalization)
-  const processedResult: ParameterFeedback<InputType, K> = isDeepStrictEqual(
+  const processedResult: ParameterValidationResult<InputType, K> = isDeepStrictEqual(
     value,
     validationResult.normalizedValue,
   )
     ? (() => {
         const { normalizedValue, ...rest } = validationResult;
-        return rest as ParameterFeedback<InputType, K>;
+        return rest as ParameterValidationResult<InputType, K>;
       })()
     : { ...validationResult };
 
