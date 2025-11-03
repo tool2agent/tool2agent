@@ -87,7 +87,7 @@ export const mkAirlineBookingTool = (
           return { allowedValues, valid: true };
         }
         // Otherwise, we fail, but provide the options for the LLM to reflect on.
-        return { allowedValues, valid: false, refusalReasons: ['no matching options'] };
+        return { allowedValues, valid: false, problems: ['no matching options'] };
       },
     })
     .field('arrival', {
@@ -105,7 +105,7 @@ export const mkAirlineBookingTool = (
         if (allowedValues.some(arrival => arrival === value)) {
           return { allowedValues, valid: true, normalizedValue: value };
         }
-        return { allowedValues, valid: false, refusalReasons: ['no matching options'] };
+        return { allowedValues, valid: false, problems: ['no matching options'] };
       },
     })
     .field('date', {
@@ -125,7 +125,7 @@ export const mkAirlineBookingTool = (
         if (allowedValues.some(date => date === value)) {
           return { allowedValues, valid: true };
         }
-        return { allowedValues, valid: false, refusalReasons: ['no matching options'] };
+        return { allowedValues, valid: false, problems: ['no matching options'] };
       },
     })
     .field('passengers', {
@@ -144,13 +144,13 @@ export const mkAirlineBookingTool = (
           if (value > max) {
             return {
               valid: false,
-              refusalReasons: [`not enough seats available (${value} passengers, max is ${max})`],
+              problems: [`not enough seats available (${value} passengers, max is ${max})`],
             };
           } else {
             return { valid: true as const };
           }
         }
-        return { valid: false as const, refusalReasons: ['value required'] };
+        return { valid: false as const, problems: ['value required'] };
       },
     })
     // Finally, we call build() that ensures we have provided specs for all dynamic fields.

@@ -1,5 +1,5 @@
 import { type Expect, type Equal } from './expect.js';
-import { type Tool2Agent, type Tool2AgentOptions, tool2agent } from '../src/index.js';
+import { type Tool2Agent, type Tool2AgentParams, tool2agent } from '../src/index.js';
 import { z } from 'zod';
 
 // The purpose of this file is to assert compile-time types only (no runtime).

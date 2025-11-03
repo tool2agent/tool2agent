@@ -107,20 +107,12 @@ function createAgentTools(
 
   // Helper function to validate place and time parameters
   function validatePlaceAndTime<OutputType>(
-    place: Place | undefined,
-    time: Time | undefined,
-  ): ToolCallResult<{ place: Place; time: Time }, OutputType> | null {
-    if (!place || !time) {
-      return {
-        ok: false,
-        rejectionReasons: ["Both 'place' and 'time' are required"],
-        validationResults: {
-          place: place ? { valid: true } : { valid: false, refusalReasons: ['Place is required'] },
-          time: time ? { valid: true } : { valid: false, refusalReasons: ['Time is required'] },
-        },
-      } as ToolCallResult<{ place: Place; time: Time }, OutputType>;
-    }
-    return null;
+    place: Place,
+    time: Time,
+  ): ToolCallResult<{ place: Place; time: Time }, OutputType> {
+    return {
+      ok: true,
+    } as ToolCallResult<{ place: Place; time: Time }, OutputType>;
   }
 
   // Helper function to check if agent can attend based on knowledge base
@@ -137,7 +129,7 @@ function createAgentTools(
         if (status === 'cannot') {
           return {
             ok: false,
-            rejectionReasons: [errorMessage],
+            problems: [errorMessage],
           } as ToolCallResult<{ place: Place; time: Time }, OutputType>;
         }
       }
@@ -248,16 +240,10 @@ function createAgentTools(
           return {
             ok: false,
             validationResults: {
-              agent: agent
-                ? { valid: true }
-                : { valid: false, refusalReasons: ['Agent is required'] },
-              place: place
-                ? { valid: true }
-                : { valid: false, refusalReasons: ['Place is required'] },
-              time: time ? { valid: true } : { valid: false, refusalReasons: ['Time is required'] },
-              status: status
-                ? { valid: true }
-                : { valid: false, refusalReasons: ['Status is required'] },
+              agent: agent ? { valid: true } : { valid: false, problems: ['Agent is required'] },
+              place: place ? { valid: true } : { valid: false, problems: ['Place is required'] },
+              time: time ? { valid: true } : { valid: false, problems: ['Time is required'] },
+              status: status ? { valid: true } : { valid: false, problems: ['Status is required'] },
             },
           };
         }
@@ -315,7 +301,7 @@ function createAgentTools(
         if (cannotAttend.length > 0) {
           return {
             ok: false,
-            rejectionReasons: [
+            problems: [
               `Cannot propose: ${cannotAttend.join(', ')} cannot attend ${place} at ${time} according to your knowledge base.`,
             ],
           };
@@ -370,7 +356,7 @@ function createAgentTools(
         if (cannotAttend.length > 0) {
           return {
             ok: false,
-            rejectionReasons: [
+            problems: [
               `Cannot confirm: ${cannotAttend.join(', ')} cannot attend ${place} at ${time} according to your knowledge base.`,
             ],
           };
@@ -379,7 +365,7 @@ function createAgentTools(
         if (missingKnowledge.length > 0) {
           return {
             ok: false,
-            rejectionReasons: [
+            problems: [
               `Cannot confirm: You don't know if ${missingKnowledge.join(', ')} ${missingKnowledge.length === 1 ? 'can' : 'can'} attend ${place} at ${time}.`,
             ],
             instructions: ['Propose it first and wait for responses to update your knowledge'],

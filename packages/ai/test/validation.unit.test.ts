@@ -42,7 +42,7 @@ describe('validation.unit.test.ts', () => {
       validationResults: {
         departure: {
           valid: false,
-          refusalReasons: ['no matching options'],
+          problems: ['no matching options'],
           allowedValues: ['London', 'Berlin', 'Paris', 'New York'],
         },
         arrival: { valid: false, requiresValidParameters: ['departure'] },
@@ -63,7 +63,7 @@ describe('validation.unit.test.ts', () => {
         arrival: {
           valid: false,
           allowedValues: ['New York'],
-          refusalReasons: ['no matching options'],
+          problems: ['no matching options'],
         },
         date: { valid: false, requiresValidParameters: ['arrival'] },
         passengers: { valid: false, requiresValidParameters: ['arrival', 'date'] },
@@ -87,7 +87,7 @@ describe('validation.unit.test.ts', () => {
         date: { valid: true, allowedValues: ['2026-10-01', '2026-10-02'] },
         passengers: {
           valid: false,
-          refusalReasons: ['not enough seats available (5 passengers, max is 1)'],
+          problems: ['not enough seats available (5 passengers, max is 1)'],
         },
       },
     };
@@ -117,7 +117,7 @@ describe('validation.unit.test.ts', () => {
         arrival: {
           valid: false,
           allowedValues: ['Tokyo'],
-          refusalReasons: ['no matching options'],
+          problems: ['no matching options'],
         },
         date: { valid: false, requiresValidParameters: ['arrival'] },
         passengers: { valid: false, requiresValidParameters: ['arrival', 'date'] },

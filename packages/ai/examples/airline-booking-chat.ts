@@ -56,7 +56,7 @@ const askUserTool = tool2agent({
       if (!input.question) {
         return {
           ok: false,
-          rejectionReasons: ['Question is required'],
+          problems: ['Question is required'],
         };
       }
       const answer = await askUserQuestion(input.question);
@@ -67,7 +67,7 @@ const askUserTool = tool2agent({
     } catch (error) {
       return {
         ok: false,
-        rejectionReasons: [error instanceof Error ? error.message : 'Failed to get user input'],
+        problems: [error instanceof Error ? error.message : 'Failed to get user input'],
       };
     }
   },

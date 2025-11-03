@@ -9,6 +9,7 @@ import type {
   ToolCallAccepted,
   ToolCallRejected,
   ParameterFeedbackRefusal,
+  SingleParameterFeedback,
 } from '@tool2agent/types';
 import {
   nonEmptyArray,
@@ -17,6 +18,7 @@ import {
   atLeastOne,
   atLeastOneTagged,
   tagObject,
+  tagUnion,
   untag,
   intersectSchemas,
   getUnionBranches,
@@ -24,17 +26,46 @@ import {
   type TaggedSchema,
 } from './schema-tools.js';
 
+// Trivial reusable schemas
+const feedbackSchema = nonEmptyArray(z.string())
+  .describe('Freeform feedback for the tool call. Cannot be empty.')
+  .optional();
+
+const instructionsSchema = nonEmptyArray(z.string())
+  .describe('Freeform instructions for the agent in response to the tool call. Cannot be empty.')
+  .optional();
+
+const problemsSchema = nonEmptyArray(z.string()).describe(
+  'Freeform reasons for why the parameter was not considered valid. Cannot be empty.',
+);
+
+const problemsRefusalSchema = nonEmptyArray(z.string()).describe(
+  'Freeform reasons for why the parameter was not considered valid',
+);
+
+const problemsHighLevelSchema = nonEmptyArray(z.string()).describe(
+  'High-level reasons why the tool call was rejected. Cannot be empty.',
+);
+
+const dynamicParameterSchema = z
+  .unknown()
+  .optional()
+  .describe(
+    'The tooling may dynamically validate the parameter based on the context. This is useful for parameters whose shape is not statically known at design time.',
+  );
+
+const normalizedValueDescription = 'The tooling may normalize values to a canonical form.';
+
+const allowedValuesDescription =
+  'Exhaustive list of acceptable values. Empty array indicates no options available.';
+
+const suggestedValuesDescription = 'Non-exhaustive list of acceptable values. Cannot be empty.';
+
 export function mkFreeFormFeedbackSchema(): z.ZodType<FreeFormFeedback> {
   return z
     .object({
-      feedback: nonEmptyArray(z.string())
-        .describe('Freeform feedback for the tool call. Cannot be empty.')
-        .optional(),
-      instructions: nonEmptyArray(z.string())
-        .describe(
-          'Freeform instructions for the agent in response to the tool call. Cannot be empty.',
-        )
-        .optional(),
+      feedback: feedbackSchema,
+      instructions: instructionsSchema,
     })
     .strict();
 }
@@ -43,14 +74,8 @@ export function mkAcceptableValuesSchema<T extends ZodType<unknown>>(
   valueSchema: T,
 ): z.ZodType<AcceptableValues<z.infer<T>>> {
   return atMostOne({
-    allowedValues: z
-      .array(valueSchema)
-      .describe(
-        'Exhaustive list of acceptable values. Empty array indicates no options available.',
-      ),
-    suggestedValues: nonEmptyArray(valueSchema).describe(
-      'Non-exhaustive list of acceptable values. Cannot be empty.',
-    ),
+    allowedValues: z.array(valueSchema).describe(allowedValuesDescription),
+    suggestedValues: nonEmptyArray(valueSchema).describe(suggestedValuesDescription),
   }) as z.ZodType<AcceptableValues<z.infer<T>>>;
 }
 
@@ -58,9 +83,7 @@ export function mkParameterFeedbackRefusalSchema<InputType extends Record<string
   paramKeyEnum: z.ZodEnum<Record<string, string>> | null,
 ): z.ZodType<ParameterFeedbackRefusal<InputType, keyof InputType>> {
   const branches: Record<string, ZodType<unknown>> = {
-    refusalReasons: nonEmptyArray(z.string()).describe(
-      'Freeform reasons for why the parameter was not considered valid',
-    ),
+    problems: problemsRefusalSchema,
   };
   if (paramKeyEnum) {
     branches.requiresValidParameters = nonEmptyArray(paramKeyEnum).describe(
@@ -84,9 +107,7 @@ function mkParameterFeedbackRefusalSchemaTagged(
   >
 > {
   const branches: Record<string, ZodType<unknown>> = {
-    refusalReasons: nonEmptyArray(z.string()).describe(
-      'Freeform reasons for why the parameter was not considered valid',
-    ),
+    problems: problemsRefusalSchema,
   };
   if (paramKeyEnum) {
     branches.requiresValidParameters = nonEmptyArray(paramKeyEnum).describe(
@@ -111,27 +132,15 @@ export function mkParameterFeedbackSchema<
   // The actual runtime value would be a ZodType, but at serialization time it's represented as unknown
   const commonSchema = z.object({
     normalizedValue: baseValueSchema.optional(),
-    dynamicParameterSchema: z.unknown().optional(),
-    feedback: nonEmptyArray(z.string())
-      .describe('Freeform feedback for the tool call. Cannot be empty.')
-      .optional(),
-    instructions: nonEmptyArray(z.string())
-      .describe(
-        'Freeform instructions for the agent in response to the tool call. Cannot be empty.',
-      )
-      .optional(),
+    dynamicParameterSchema,
+    feedback: feedbackSchema,
+    instructions: instructionsSchema,
   });
 
   // Build AcceptableValues union schema (AtMostOne) - tagged
   const acceptableValuesSchemaTagged = atMostOneTagged({
-    allowedValues: z
-      .array(baseValueSchema)
-      .describe(
-        'Exhaustive list of acceptable values. Empty array indicates no options available.',
-      ),
-    suggestedValues: nonEmptyArray(baseValueSchema).describe(
-      'Non-exhaustive list of acceptable values. Cannot be empty.',
-    ),
+    allowedValues: z.array(baseValueSchema).describe(allowedValuesDescription),
+    suggestedValues: nonEmptyArray(baseValueSchema).describe(suggestedValuesDescription),
   });
 
   // Build ParameterFeedbackRefusal union schema (AtLeastOne) - tagged
@@ -198,20 +207,41 @@ export function mkParameterFeedbackSchema<
 }
 
 /**
- * Creates a validation results schema for non-record input types.
- * When InputType is not a record, it wraps it in { value: InputType }.
+ * Creates a Zod schema for SingleParameterFeedback.
+ * Used for non-record input types where feedback is provided for the entire input value.
  */
-function mkValidationResultsSchemaForNonRecord<InputType>(
+export function mkSingleParameterFeedbackSchema<InputType>(
   inputSchema: ZodType<InputType>,
-): z.ZodType<ParameterFeedback<{ value: InputType }, 'value'>> {
-  // Wrap the input in { value: ... } schema
-  const wrappedSchema = z.object({ value: inputSchema });
-  const paramKeyEnum = z.enum({ value: 'value' });
+): z.ZodType<SingleParameterFeedback<InputType>> {
+  // Build common schema: normalizedValue, dynamicParameterSchema, feedback, instructions
+  const commonSchema = z.object({
+    normalizedValue: inputSchema.optional().describe(normalizedValueDescription),
+    dynamicParameterSchema,
+    feedback: feedbackSchema,
+    instructions: instructionsSchema,
+  });
 
-  return mkParameterFeedbackSchema<{ value: InputType }, InputType, 'value'>(
-    inputSchema,
-    paramKeyEnum,
+  // Build AcceptableValues union schema (AtMostOne) - tagged
+  const acceptableValuesSchemaTagged = atMostOneTagged({
+    allowedValues: z.array(inputSchema).describe(allowedValuesDescription),
+    suggestedValues: nonEmptyArray(inputSchema).describe(suggestedValuesDescription),
+  });
+
+  // Build base schema with problems field
+  const problemsSchemaTagged = tagObject(
+    z
+      .object({
+        problems: problemsSchema,
+      })
+      .extend(commonSchema.shape)
+      .strict(),
   );
+
+  // Intersect: problems & common & AcceptableValues union
+  const resultTagged = intersectSchemas(problemsSchemaTagged, acceptableValuesSchemaTagged);
+
+  // Extract the final schema (result is always a union from intersectSchemas)
+  return untag(resultTagged) as z.ZodType<SingleParameterFeedback<InputType>>;
 }
 
 export function mkValidationResultsSchema<InputType extends Record<string, unknown>>(
@@ -265,8 +295,8 @@ export function mkToolCallAcceptedSchema<OutputType>(
   const isNever = outputSchema instanceof ZodNever;
   const baseObject = {
     ok: z.literal(true),
-    feedback: nonEmptyArray(z.string()).optional(),
-    instructions: nonEmptyArray(z.string()).optional(),
+    feedback: feedbackSchema,
+    instructions: instructionsSchema,
   };
 
   // Check if outputSchema is a ZodObject
@@ -312,25 +342,17 @@ export function mkToolCallRejectedSchema<InputType extends Record<string, unknow
   const commonSchema = z
     .object({
       ok: z.literal(false),
-      feedback: nonEmptyArray(z.string())
-        .describe('Freeform feedback for the tool call. Cannot be empty.')
-        .optional(),
-      instructions: nonEmptyArray(z.string())
-        .describe(
-          'Freeform instructions for the agent in response to the tool call. Cannot be empty.',
-        )
-        .optional(),
+      feedback: feedbackSchema,
+      instructions: instructionsSchema,
     })
     .strict();
 
-  // Build AtLeastOne union schema for validationResults/rejectionReasons - tagged
+  // Build AtLeastOne union schema for validationResults/problems - tagged
   const atLeastOneSchemaTagged = atLeastOneTagged({
     validationResults: validationResultsSchema.describe(
       'Validation feedback for individual parameters. At least one parameter must be present.',
     ),
-    rejectionReasons: nonEmptyArray(z.string()).describe(
-      'High-level reasons why the tool call was rejected. Cannot be empty.',
-    ),
+    problems: problemsHighLevelSchema,
   });
 
   // Intersect: common & AtLeastOne union
@@ -377,15 +399,9 @@ export function mkTool2AgentSchema<S extends ZodType<unknown>, OutputType>(
   // Check if inputSchema is a ZodObject (record case)
   const isRecord = inputSchema instanceof ZodObject;
 
-  let validationResults: z.ZodType<
-    | {
-        [K in keyof (InputType & Record<string, unknown>) & string]?: ParameterFeedback<
-          InputType & Record<string, unknown>,
-          K
-        >;
-      }
-    | ParameterFeedback<{ value: InputType }, 'value'>
-  >;
+  const accepted = mkToolCallAcceptedSchema<OutputType>(outputSchema);
+
+  let rejected: z.ZodType<ToolCallRejected<InputType & Record<string, unknown>>>;
 
   if (isRecord) {
     // Record case: use field-based validation
@@ -395,55 +411,39 @@ export function mkTool2AgentSchema<S extends ZodType<unknown>, OutputType>(
       inputSchema as z.ZodObject<Record<string, ZodType<unknown>>>,
       keys,
     );
-    validationResults = mkValidationResultsSchema<InputType & Record<string, unknown>>(
+    const validationResults = mkValidationResultsSchema<InputType & Record<string, unknown>>(
       inputSchema as z.ZodObject<Record<string, ZodType<unknown>>>,
       paramKeyEnum,
     );
-  } else {
-    // Non-record case: wrap in { value: InputType }
-    validationResults = mkValidationResultsSchemaForNonRecord<InputType>(
-      inputSchema as ZodType<InputType>,
-    );
-    // For non-records, TypedParametersFeedback expects validationResults to be wrapped
-    // in AtLeastOne with rejectionReasons, but validationResults itself is just ParameterFeedback
-    // We need to construct the proper schema structure
-  }
-
-  const accepted = mkToolCallAcceptedSchema<OutputType>(outputSchema);
-
-  // For non-record case, we need to handle TypedParametersFeedback differently
-  // It wraps validationResults in AtLeastOne with rejectionReasons
-  let rejected: z.ZodType<ToolCallRejected<InputType & Record<string, unknown>>>;
-
-  if (isRecord) {
     rejected = mkToolCallRejectedSchema<InputType & Record<string, unknown>>(validationResults);
   } else {
-    // Non-record: TypedParametersFeedback wraps validationResults in AtLeastOne with rejectionReasons
-    // validationResults is ParameterFeedback<{ value: InputType }, 'value'>
-    const atLeastOneSchemaTagged = atLeastOneTagged({
-      validationResults: validationResults.describe('Validation feedback for the input value.'),
-      rejectionReasons: nonEmptyArray(z.string()).describe(
-        'High-level reasons why the tool call was rejected. Cannot be empty.',
-      ),
-    });
+    // Non-record case: use SingleParameterFeedback directly
+    // For non-records, TypedParametersFeedback becomes SingleParameterFeedback<InputType>
+    // ToolCallRejected<InputType> = { ok: false } & SingleParameterFeedback<InputType> & FreeFormFeedback
+    // SingleParameterFeedback already includes feedback and instructions, so we just need to add ok: false
+    const singleParameterFeedbackSchema = mkSingleParameterFeedbackSchema<InputType>(
+      inputSchema as ZodType<InputType>,
+    );
 
-    const commonSchema = z
-      .object({
-        ok: z.literal(false),
-        feedback: nonEmptyArray(z.string())
-          .describe('Freeform feedback for the tool call. Cannot be empty.')
-          .optional(),
-        instructions: nonEmptyArray(z.string())
-          .describe(
-            'Freeform instructions for the agent in response to the tool call. Cannot be empty.',
-          )
-          .optional(),
-      })
-      .strict();
+    // mkSingleParameterFeedbackSchema returns a union (from intersectSchemas), so we need to
+    // intersect it with the ok: false field using tagged schemas
+    const okSchema = tagObject(
+      z
+        .object({
+          ok: z.literal(false),
+        })
+        .strict(),
+    );
 
-    const commonSchemaTagged = tagObject(commonSchema);
-    const resultTagged = intersectSchemas(commonSchemaTagged, atLeastOneSchemaTagged);
-    rejected = untag(resultTagged) as z.ZodType<
+    // Wrap the union in a tagged schema for intersection
+    // mkSingleParameterFeedbackSchema always returns a union from intersectSchemas
+    const singlePfTagged: TaggedSchema<any> = tagUnion(
+      singleParameterFeedbackSchema as z.ZodUnion<any>,
+      (singleParameterFeedbackSchema as z.ZodUnion<any>).options,
+    );
+
+    const rejectedTagged = intersectSchemas(okSchema, singlePfTagged);
+    rejected = untag(rejectedTagged) as z.ZodType<
       ToolCallRejected<InputType & Record<string, unknown>>
     >;
   }

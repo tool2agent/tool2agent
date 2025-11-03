@@ -32,6 +32,10 @@ export type ToolCallAccepted<OutputType> = {
           FlattenOrWrapInValueField<OutputType>) &
   FreeFormFeedback;
 
+/**
+ * If T is a record, we use it directly.
+ * Otherwise, we wrap it in a value field.
+ */
 type FlattenOrWrapInValueField<T> = [T] extends [Record<string, unknown>]
   ? T
   : {
@@ -50,7 +54,10 @@ export type FreeFormFeedback = {
 
 /**
  * Rejected tool call.
- * Mandates at least one feedback item.
+ * Since the goal of tool2agent is to let the LLM refine the input iteratively,
+ * we require at least one actionable validation result to be present.
+ * This requirement naturally guides the developer towards building better feedback systems,
+ * because the type system will not allow omitting validation results.
  */
 export type ToolCallRejected<InputType> = {
   ok: false;
@@ -60,7 +67,8 @@ export type ToolCallRejected<InputType> = {
 export type TypedParametersFeedback<InputType> =
   /** If InputType is a record, we can provide feedback for its fields. */
   InputType extends Record<string, unknown>
-    ? AtLeastOne<{
+    ? /** We require at least one actionable validation result to be present. */
+      AtLeastOne<{
         /**
          * not every parameter in the input type is required to be present,
          * but we require at least one to ensure the LLM can make some progress
@@ -69,21 +77,24 @@ export type TypedParametersFeedback<InputType> =
         validationResults: AtLeastOne<{
           [ParamKey in keyof InputType]?: ParameterFeedback<InputType, ParamKey>;
         }>;
-        rejectionReasons: NonEmptyArray<string>;
+        problems: NonEmptyArray<string>;
       }>
-    : AtLeastOne<{
-        /** If InputType is not a record, we provide feedback for the entire input.
-         * In this case, refusalReasons becomes required, and validationResults is not allowed,
-         * because Exclude<'value', 'value'> is never.
-         */
-        validationResults: ParameterFeedback<{ value: InputType }, 'value'>;
-        rejectionReasons: NonEmptyArray<string>;
-      }>;
+    : /** If InputType is not a record, we provide feedback for the entire input.
+       * In this case, `problems` field becomes required, and `validationResults` is not allowed,
+       * because there is only a single field.
+       * We do not include `requiresValidParameters` because it is not applicable to non-record inputs,
+       * since it references other record fields.
+       */
+      SingleParameterFeedback<InputType>;
 
 export type ParameterFeedback<
   InputType extends Record<string, unknown>,
   ParamKey extends keyof InputType,
 > = ParameterFeedbackCommon<InputType[ParamKey]> & ParameterFeedbackVariants<InputType, ParamKey>;
+
+export type SingleParameterFeedback<InputType> = {
+  problems: NonEmptyArray<string>;
+} & ParameterFeedbackCommon<InputType>;
 
 /**
  * Feedback for a single tool call parameter.
@@ -128,7 +139,7 @@ export type ParameterFeedbackRefusal<
   ParamKey extends keyof InputType,
 > = AtLeastOne<{
   /** Freeform reasons for why the parameter was not considered valid. */
-  refusalReasons?: NonEmptyArray<string>;
+  problems?: NonEmptyArray<string>;
   /**
    * Sometimes it is not possible to validate a parameter without knowing the values of other parameters.
    * In this case, the developer may specify the parameters that are required to validate this parameter,

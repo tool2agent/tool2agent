@@ -27,7 +27,7 @@ export type Tool2Agent<InputType, OutputType> = Tool<
  * - outputSchema: the schema of the output type (can be `typeof z.never()`)
  * - execute: the function that will be called when all the parameters are provided and validated.
  */
-export type Tool2AgentOptions<
+export type Tool2AgentParams<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodType<any> = z.ZodNever,
 > = {
@@ -62,7 +62,7 @@ export function tool2agent<
     Tool<z.infer<InputSchema>, z.infer<OutputSchema>>,
     'execute' | 'inputSchema' | 'outputSchema' | 'toModelOutput'
   > &
-    Tool2AgentOptions<InputSchema, OutputSchema>,
+    Tool2AgentParams<InputSchema, OutputSchema>,
 ): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>> {
   const { execute, inputSchema, outputSchema, type, ...rest } = params;
   type InputType = z.infer<InputSchema>;
@@ -79,17 +79,17 @@ export function tool2agent<
         if (error.message && error.name) {
           return {
             ok: false,
-            rejectionReasons: [errorMessage + error.name + ': ' + error.message],
+            problems: [errorMessage + error.name + ': ' + error.message],
           };
         }
         return {
           ok: false,
-          rejectionReasons: [errorMessage + error.stack],
+          problems: [errorMessage + error.stack],
         };
       }
       return {
         ok: false,
-        rejectionReasons: [errorMessage + String(error)],
+        problems: [errorMessage + String(error)],
       };
     };
 

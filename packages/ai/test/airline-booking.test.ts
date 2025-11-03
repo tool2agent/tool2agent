@@ -4,6 +4,9 @@ import { generateText } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import 'dotenv/config';
 import { type AirlineBooking, mkAirlineBookingTool } from './airline.js';
+import { setLoggingEnabled } from '../src/internal-logger.js';
+
+setLoggingEnabled(true);
 
 describe('airline-booking.test.ts', () => {
   it('#1 executes and returns accepted value', async function () {

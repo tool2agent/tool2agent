@@ -12,6 +12,7 @@ import {
   mkToolCallRejectedSchema,
   mkToolCallResultSchema,
   mkTool2AgentSchema,
+  mkSingleParameterFeedbackSchema,
 } from '../src/index.js';
 import { nonEmptyArray } from '../src/schema-tools.js';
 
@@ -82,11 +83,11 @@ test('parameter feedback schemas', async t => {
   await t.test('mkParameterFeedbackRefusalSchema (AtLeastOne of reasons/required)', () => {
     const keyEnum = createKeyEnum(inputSchema);
     const s = mkParameterFeedbackRefusalSchema(keyEnum);
-    expectParseOK(s, { refusalReasons: ['bad format'] });
+    expectParseOK(s, { problems: ['bad format'] });
     expectParseOK(s, { requiresValidParameters: ['name'] });
-    expectParseOK(s, { refusalReasons: ['x'], requiresValidParameters: ['age'] });
+    expectParseOK(s, { problems: ['x'], requiresValidParameters: ['age'] });
     expectParseFail(s, {});
-    expectParseFail(s, { refusalReasons: [] });
+    expectParseFail(s, { problems: [] });
     expectParseFail(s, { requiresValidParameters: [] });
   });
 
@@ -132,16 +133,16 @@ test('parameter feedback schemas', async t => {
       instructions: ['good'],
     });
 
-    // valid: false branches with refusalReasons
-    expectParseOK(namePf, { valid: false, refusalReasons: ['too short'] });
+    // valid: false branches with problems
+    expectParseOK(namePf, { valid: false, problems: ['too short'] });
     expectParseOK(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       allowedValues: ['John'],
     });
     expectParseOK(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       suggestedValues: ['John'],
     });
 
@@ -161,18 +162,18 @@ test('parameter feedback schemas', async t => {
     // valid: false branches with both refusal fields
     expectParseOK(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       requiresValidParameters: ['age'],
     });
     expectParseOK(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       requiresValidParameters: ['age'],
       allowedValues: ['John'],
     });
     expectParseOK(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       requiresValidParameters: ['age'],
       suggestedValues: ['John'],
     });
@@ -187,7 +188,7 @@ test('parameter feedback schemas', async t => {
     });
     expectParseFail(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       allowedValues: ['x'],
       suggestedValues: ['y'],
     });
@@ -202,8 +203,125 @@ test('parameter feedback schemas', async t => {
     });
     expectParseFail(namePf, {
       valid: false,
-      refusalReasons: ['bad'],
+      problems: ['bad'],
       requiresValidParameters: ['unknown'],
+    });
+  });
+
+  await t.test('mkSingleParameterFeedbackSchema - comprehensive coverage', () => {
+    const stringInputSchema = z.string();
+    const singlePfSchema = mkSingleParameterFeedbackSchema(stringInputSchema);
+    type SinglePfType = z.infer<typeof singlePfSchema>;
+
+    // Required field: problems
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid format'],
+    });
+
+    // With normalizedValue
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      normalizedValue: 'normalized',
+    });
+
+    // With dynamicParameterSchema
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      dynamicParameterSchema: { some: 'schema' },
+    });
+
+    // With feedback
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      feedback: ['Please correct'],
+    });
+
+    // With instructions
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      instructions: ['Follow these steps'],
+    });
+
+    // With allowedValues (empty array is valid)
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      allowedValues: [],
+    });
+
+    // With allowedValues (non-empty)
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      allowedValues: ['valid1', 'valid2'],
+    });
+
+    // With suggestedValues
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      suggestedValues: ['valid1', 'valid2'],
+    });
+
+    // All optional fields combined
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid format'],
+      normalizedValue: 'normalized',
+      dynamicParameterSchema: { some: 'schema' },
+      feedback: ['Feedback'],
+      instructions: ['Instructions'],
+      allowedValues: ['valid1'],
+    });
+
+    // Another combination with suggestedValues
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      normalizedValue: 'normalized',
+      dynamicParameterSchema: { some: 'schema' },
+      feedback: ['Feedback'],
+      instructions: ['Instructions'],
+      suggestedValues: ['valid1', 'valid2'],
+    });
+
+    // None of allowedValues/suggestedValues (empty AcceptableValues - valid per AtMostOne)
+    expectParseOK(singlePfSchema, {
+      problems: ['Invalid'],
+      normalizedValue: 'normalized',
+      dynamicParameterSchema: { some: 'schema' },
+      feedback: ['Feedback'],
+      instructions: ['Instructions'],
+    });
+
+    // Negative: missing problems (required)
+    expectParseFail(singlePfSchema, {
+      normalizedValue: 'normalized',
+    });
+
+    // Negative: both allowedValues and suggestedValues (AtMostOne violation)
+    expectParseFail(singlePfSchema, {
+      problems: ['Invalid'],
+      allowedValues: ['a'],
+      suggestedValues: ['b'],
+    });
+
+    // Negative: empty problems array
+    expectParseFail(singlePfSchema, {
+      problems: [],
+    });
+
+    // Negative: empty feedback array
+    expectParseFail(singlePfSchema, {
+      problems: ['Invalid'],
+      feedback: [],
+    });
+
+    // Negative: empty instructions array
+    expectParseFail(singlePfSchema, {
+      problems: ['Invalid'],
+      instructions: [],
+    });
+
+    // Negative: empty suggestedValues array
+    expectParseFail(singlePfSchema, {
+      problems: ['Invalid'],
+      suggestedValues: [],
     });
   });
 });
@@ -222,7 +340,7 @@ test('validation results schemas', async t => {
     expectParseOK(vr, {
       age: {
         valid: false,
-        refusalReasons: ['neg'],
+        problems: ['neg'],
       },
     });
     expectParseOK(vr, {
@@ -234,7 +352,7 @@ test('validation results schemas', async t => {
     expectParseOK(vr, {
       name: {
         valid: false,
-        refusalReasons: ['bad'],
+        problems: ['bad'],
         requiresValidParameters: ['age'],
       },
     });
@@ -244,7 +362,7 @@ test('validation results schemas', async t => {
       age: { valid: true },
     });
     expectParseOK(vr, {
-      name: { valid: false, refusalReasons: ['bad'] },
+      name: { valid: false, problems: ['bad'] },
       age: { valid: false, requiresValidParameters: ['email'] },
     });
     // empty object not allowed (no branches match AtLeastOne)
@@ -342,7 +460,7 @@ test('tool call schemas', async t => {
     expectParseOK(rej, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'] },
+        name: { valid: false, problems: ['bad'] },
       },
     });
     expectParseOK(rej, {
@@ -354,28 +472,28 @@ test('tool call schemas', async t => {
     expectParseOK(rej, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'], requiresValidParameters: ['age'] },
+        name: { valid: false, problems: ['bad'], requiresValidParameters: ['age'] },
       },
     });
-    // valid with rejectionReasons
-    expectParseOK(rej, { ok: false, rejectionReasons: ['system down'] });
+    // valid with problems
+    expectParseOK(rej, { ok: false, problems: ['system down'] });
     // valid with both
     expectParseOK(rej, {
       ok: false,
       validationResults: { name: { valid: true } },
-      rejectionReasons: ['also rejected'],
+      problems: ['also rejected'],
     });
     expectParseOK(rej, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'] },
+        name: { valid: false, problems: ['bad'] },
       },
-      rejectionReasons: ['also rejected'],
+      problems: ['also rejected'],
     });
     // invalid: neither provided
     expectParseFail(rej, { ok: false });
-    // invalid: empty rejectionReasons
-    expectParseFail(rej, { ok: false, rejectionReasons: [] });
+    // invalid: empty problems
+    expectParseFail(rej, { ok: false, problems: [] });
   });
 
   await t.test('mkToolCallResultSchema union', () => {
@@ -386,7 +504,7 @@ test('tool call schemas', async t => {
     const res = mkToolCallResultSchema(acc, rej);
 
     expectParseOK(res, { ok: true, id: '1', createdAt: 'now' });
-    expectParseOK(res, { ok: false, rejectionReasons: ['x'] });
+    expectParseOK(res, { ok: false, problems: ['x'] });
     expectParseFail(res, { ok: true });
   });
 });
@@ -402,7 +520,7 @@ test('end-to-end integration', async t => {
     expectParseOK(toolSchema, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'] },
+        name: { valid: false, problems: ['bad'] },
       },
     });
     expectParseOK(toolSchema, {
@@ -414,13 +532,13 @@ test('end-to-end integration', async t => {
     expectParseOK(toolSchema, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'], requiresValidParameters: ['age'] },
+        name: { valid: false, problems: ['bad'], requiresValidParameters: ['age'] },
       },
     });
     expectParseOK(toolSchema, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'], allowedValues: ['John'] },
+        name: { valid: false, problems: ['bad'], allowedValues: ['John'] },
       },
     });
     expectParseOK(toolSchema, {
@@ -430,21 +548,21 @@ test('end-to-end integration', async t => {
       },
     });
 
-    // rejected: rejectionReasons
-    expectParseOK(toolSchema, { ok: false, rejectionReasons: ['rate limit'] });
+    // rejected: problems
+    expectParseOK(toolSchema, { ok: false, problems: ['rate limit'] });
 
     // rejected: both
     expectParseOK(toolSchema, {
       ok: false,
       validationResults: { name: { valid: true } },
-      rejectionReasons: ['also rejected'],
+      problems: ['also rejected'],
     });
     expectParseOK(toolSchema, {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['bad'], requiresValidParameters: ['age'] },
+        name: { valid: false, problems: ['bad'], requiresValidParameters: ['age'] },
       },
-      rejectionReasons: ['also rejected'],
+      problems: ['also rejected'],
     });
 
     // negatives
@@ -489,7 +607,7 @@ test('type inference tests', async t => {
     const rejectedWithValidation: RejectedType = {
       ok: false,
       validationResults: {
-        name: { valid: false, refusalReasons: ['Invalid format'] },
+        name: { valid: false, problems: ['Invalid format'] },
         age: { valid: true },
       },
       feedback: ['Please correct the errors'],
@@ -499,17 +617,17 @@ test('type inference tests', async t => {
 
     const rejectedWithReasons: RejectedType = {
       ok: false,
-      rejectionReasons: ['Rate limit exceeded', 'Service unavailable'],
+      problems: ['Rate limit exceeded', 'Service unavailable'],
       instructions: ['Try again later'],
     };
 
     expectParseOK(rejectedSchema, rejectedWithReasons);
 
     // Negative: typed value violating AtLeastOne constraint
-    // @ts-expect-error - Missing both validationResults and rejectionReasons
+    // @ts-expect-error - Missing both validationResults and problems
     const invalidRejected: RejectedType = {
       ok: false,
-      // Missing both validationResults and rejectionReasons
+      // Missing both validationResults and problems
     };
 
     expectParseFail(rejectedSchema, invalidRejected);
@@ -534,7 +652,7 @@ test('type inference tests', async t => {
 
     const invalidParam: ParamFeedbackType = {
       valid: false,
-      refusalReasons: ['Too short', 'Invalid characters'],
+      problems: ['Too short', 'Invalid characters'],
       requiresValidParameters: ['email'],
       suggestedValues: ['John', 'Johnny'],
     };
@@ -560,7 +678,7 @@ test('type inference tests', async t => {
     const singleParam: ValidationResultsType = {
       name: {
         valid: false,
-        refusalReasons: ['Invalid'],
+        problems: ['Invalid'],
         requiresValidParameters: ['age'],
       },
     };
@@ -569,7 +687,7 @@ test('type inference tests', async t => {
 
     const multipleParams: ValidationResultsType = {
       name: { valid: true, normalizedValue: 'John' },
-      age: { valid: false, refusalReasons: ['Must be positive'] },
+      age: { valid: false, problems: ['Must be positive'] },
       email: { valid: true },
     };
 
@@ -594,10 +712,10 @@ test('type inference tests', async t => {
 
     expectParseOK(emptyToolSchema, accepted);
 
-    // Rejected with rejectionReasons (empty input has no validationResults)
+    // Rejected with problems (empty input has no validationResults)
     const rejected: EmptyToolResultType = {
       ok: false,
-      rejectionReasons: ['No input provided'],
+      problems: ['No input provided'],
     } as EmptyToolResultType;
 
     expectParseOK(emptyToolSchema, rejected);
@@ -611,8 +729,8 @@ test('type inference tests', async t => {
 
     expectParseOK(emptyToolSchema, rejectedWithEmptyValidation);
 
-    // Negative: missing both validationResults and rejectionReasons
-    // @ts-expect-error - Missing both validationResults and rejectionReasons
+    // Negative: missing both validationResults and problems
+    // @ts-expect-error - Missing both validationResults and problems
     const invalidRejected: EmptyToolResultType = {
       ok: false,
       // Missing both required fields
@@ -652,7 +770,7 @@ test('type inference tests', async t => {
       validationResults: {
         user: {
           valid: false,
-          refusalReasons: ['Invalid user data'],
+          problems: ['Invalid user data'],
           requiresValidParameters: ['settings'],
         },
         settings: {
@@ -660,7 +778,7 @@ test('type inference tests', async t => {
           normalizedValue: { theme: 'dark', notifications: true },
         },
       },
-      rejectionReasons: ['Additional validation failed'],
+      problems: ['Additional validation failed'],
     } as ComplexToolResultType;
 
     expectParseOK(complexToolSchema, complexRejected);
@@ -692,37 +810,40 @@ test('non-record input types', async t => {
     };
     expectParseOK(stringToolSchema, accepted);
 
-    // Rejected: validationResults wraps input in { value: InputType }
-    const rejectedWithValidation: StringToolResultType = {
+    // Rejected: SingleParameterFeedback - problems is required
+    const rejectedWithProblems: StringToolResultType = {
       ok: false,
-      validationResults: {
-        valid: false,
-        refusalReasons: ['Invalid format'],
-      },
-    } as StringToolResultType;
-    expectParseOK(stringToolSchema, rejectedWithValidation);
+      problems: ['Invalid format'],
+    };
+    expectParseOK(stringToolSchema, rejectedWithProblems);
 
-    // Rejected: with rejectionReasons
-    const rejectedWithReasons: StringToolResultType = {
+    // Rejected: with problems and other SingleParameterFeedback fields
+    const rejectedWithMoreFields: StringToolResultType = {
       ok: false,
-      rejectionReasons: ['Input too long'],
-    } as StringToolResultType;
-    expectParseOK(stringToolSchema, rejectedWithReasons);
+      problems: ['Input too long'],
+      normalizedValue: 'normalized',
+      suggestedValues: ['valid1', 'valid2'],
+    };
+    expectParseOK(stringToolSchema, rejectedWithMoreFields);
 
-    // TODO: this case is BAD LOOKING, reconsider
-    // Rejected: with both validationResults and rejectionReasons
-    const rejectedWithBoth: StringToolResultType = {
+    // Rejected: with problems and allowedValues
+    const rejectedWithAllowedValues: StringToolResultType = {
       ok: false,
-      validationResults: {
-        valid: false,
-        refusalReasons: ['Invalid format'],
-      },
-      rejectionReasons: ['Also rejected'],
-    } as StringToolResultType;
-    expectParseOK(stringToolSchema, rejectedWithBoth);
+      problems: ['Invalid'],
+      allowedValues: ['valid1', 'valid2'],
+    };
+    expectParseOK(stringToolSchema, rejectedWithAllowedValues);
 
-    // Negative: missing both validationResults and rejectionReasons
+    // Negative: missing problems (required)
     expectParseFail(stringToolSchema, { ok: false });
+
+    // Negative: both allowedValues and suggestedValues (AtMostOne violation)
+    expectParseFail(stringToolSchema, {
+      ok: false,
+      problems: ['Invalid'],
+      allowedValues: ['a'],
+      suggestedValues: ['b'],
+    });
   });
 
   await t.test('mkTool2AgentSchema with number input (non-record)', () => {
@@ -738,15 +859,12 @@ test('non-record input types', async t => {
     };
     expectParseOK(numberToolSchema, accepted);
 
-    // Rejected: validationResults wraps number in { value: number }
+    // Rejected: SingleParameterFeedback - problems is required
     const rejected: NumberToolResultType = {
       ok: false,
-      validationResults: {
-        valid: false,
-        refusalReasons: ['Number too large'],
-        suggestedValues: [42, 100],
-      },
-    } as NumberToolResultType;
+      problems: ['Number too large'],
+      suggestedValues: [42, 100],
+    };
     expectParseOK(numberToolSchema, rejected);
   });
 
@@ -763,15 +881,12 @@ test('non-record input types', async t => {
     };
     expectParseOK(arrayToolSchema, accepted);
 
-    // Rejected: validationResults wraps array in { value: string[] }
+    // Rejected: SingleParameterFeedback - problems is required
     const rejected: ArrayToolResultType = {
       ok: false,
-      validationResults: {
-        valid: false,
-        refusalReasons: ['Array too short'],
-        allowedValues: [['a', 'b']],
-      },
-    } as ArrayToolResultType;
+      problems: ['Array too short'],
+      allowedValues: [['a', 'b']],
+    };
     expectParseOK(arrayToolSchema, rejected);
   });
 
@@ -788,14 +903,11 @@ test('non-record input types', async t => {
     };
     expectParseOK(unionToolSchema, accepted);
 
-    // Rejected: validationResults wraps union in { value: string | number }
+    // Rejected: SingleParameterFeedback - problems is required
     const rejected: UnionToolResultType = {
       ok: false,
-      validationResults: {
-        valid: false,
-        refusalReasons: ['Invalid union value'],
-      },
-    } as UnionToolResultType;
+      problems: ['Invalid union value'],
+    };
     expectParseOK(unionToolSchema, rejected);
   });
 
@@ -804,33 +916,43 @@ test('non-record input types', async t => {
     const stringToolSchema = mkTool2AgentSchema(stringInputSchema, z.string());
     type StringToolResultType = z.infer<typeof stringToolSchema>;
 
-    // Valid feedback structure for non-record: wraps in { value: InputType }
-    const rejectedWithValidFeedback: StringToolResultType = {
+    // Valid feedback structure for non-record: SingleParameterFeedback directly
+    const rejectedWithProblems: StringToolResultType = {
       ok: false,
-      validationResults: {
-        valid: true,
-        normalizedValue: 'normalized',
-        feedback: ['Value normalized'],
-      },
-    } as StringToolResultType;
-    expectParseOK(stringToolSchema, rejectedWithValidFeedback);
+      problems: ['Too short'],
+      normalizedValue: 'normalized',
+      feedback: ['Value normalized'],
+    };
+    expectParseOK(stringToolSchema, rejectedWithProblems);
 
-    const rejectedWithInvalidFeedback: StringToolResultType = {
+    // Valid with allowedValues
+    const rejectedWithAllowedValues: StringToolResultType = {
       ok: false,
-      validationResults: {
-        valid: false,
-        refusalReasons: ['Too short'],
-        // For non-record inputs, requiresValidParameters is not applicable (no other params)
-      },
-    } as StringToolResultType;
-    expectParseOK(stringToolSchema, rejectedWithInvalidFeedback);
+      problems: ['Invalid'],
+      allowedValues: ['valid1', 'valid2'],
+    };
+    expectParseOK(stringToolSchema, rejectedWithAllowedValues);
 
-    // Negative: validationResults must be ParameterFeedback structure, not object with keys
+    // Valid with suggestedValues
+    const rejectedWithSuggestedValues: StringToolResultType = {
+      ok: false,
+      problems: ['Invalid'],
+      suggestedValues: ['valid1', 'valid2'],
+    };
+    expectParseOK(stringToolSchema, rejectedWithSuggestedValues);
+
+    // Negative: missing problems (required)
     expectParseFail(stringToolSchema, {
       ok: false,
-      validationResults: {
-        value: { valid: false, refusalReasons: ['bad'] },
-      },
+      normalizedValue: 'normalized',
+    });
+
+    // Negative: both allowedValues and suggestedValues (AtMostOne violation)
+    expectParseFail(stringToolSchema, {
+      ok: false,
+      problems: ['Invalid'],
+      allowedValues: ['a'],
+      suggestedValues: ['b'],
     });
   });
 });

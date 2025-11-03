@@ -4,6 +4,7 @@ import {
   type ParameterFeedback,
   type FreeFormFeedback,
   type AcceptableValues,
+  type SingleParameterFeedback,
   ParameterFeedbackCommon,
 } from '../src/tool2agent.js';
 import * as z from 'zod';
@@ -114,7 +115,7 @@ const validRejectedWithValidation: ToolCallRejected<TestParams> = {
   validationResults: {
     name: {
       valid: false,
-      refusalReasons: ['Name is too short'],
+      problems: ['Name is too short'],
     },
   },
 };
@@ -131,10 +132,10 @@ const invalidRejectedWithValidation2: ToolCallRejected<TestParams> = {
   ok: false,
 };
 
-// Valid: Rejected with rejection reasons
+// Valid: Rejected with problems
 const validRejectedWithReasons: ToolCallRejected<TestParams> = {
   ok: false,
-  rejectionReasons: ['System unavailable'],
+  problems: ['System unavailable'],
 };
 
 // Valid: Rejected with both validation results and rejection reasons
@@ -143,23 +144,23 @@ const validRejectedWithBoth: ToolCallRejected<TestParams> = {
   validationResults: {
     age: {
       valid: false,
-      refusalReasons: ['Age is out of range'],
+      problems: ['Age is out of range'],
     },
   },
-  rejectionReasons: ['Additional system error'],
+  problems: ['Additional system error'],
 };
 
 // Invalid: Rejected with neither validation results nor rejection reasons (violates AtLeastOne)
 // Demonstrated via function parameter
 function expectRejected(x: ToolCallRejected<TestParams>) {}
-// @ts-expect-error - at least one of validationResults or rejectionReasons is required
+// @ts-expect-error - at least one of validationResults or problems is required
 expectRejected({ ok: false });
 
-// Demonstrate empty rejectionReasons detection
+// Demonstrate empty problems detection
 function checkRejected(x: ToolCallRejected<TestParams>) {}
 const emptyReasons: [] = [];
 // @ts-expect-error - empty array cannot be NonEmptyArray
-checkRejected({ ok: false, rejectionReasons: emptyReasons });
+checkRejected({ ok: false, problems: emptyReasons });
 
 // ==================== ParameterFeedback Tests ====================
 
@@ -183,7 +184,7 @@ const validParamFeedbackAllowed: ParameterFeedback<TestParams, 'name'> = {
 // Valid: Parameter feedback with invalid status and refusal reasons
 const validParamFeedbackInvalid: ParameterFeedback<TestParams, 'name'> = {
   valid: false,
-  refusalReasons: ['Name contains invalid characters'],
+  problems: ['Name contains invalid characters'],
 };
 
 // Valid: Parameter feedback with invalid status and requires valid parameters
@@ -195,14 +196,14 @@ const validParamFeedbackRequires: ParameterFeedback<TestParams, 'email'> = {
 // Invalid: Parameter feedback with invalid status but no refusal info (violates AtLeastOne)
 // Demonstrated via function parameter
 function expectParamFeedbackInvalid(x: ParameterFeedback<TestParams, 'name'>) {}
-// @ts-expect-error - invalid feedback must have refusalReasons or requiresValidParameters
+// @ts-expect-error - invalid feedback must have problems or requiresValidParameters
 expectParamFeedbackInvalid({ valid: false });
 
 // Demonstrate empty array detection for parameter feedback
 function checkParamFeedback(x: ParameterFeedback<TestParams, 'name'>) {}
 const emptyRefusalReasons: [] = [];
 // @ts-expect-error - empty array cannot be NonEmptyArray
-checkParamFeedback({ valid: false, refusalReasons: emptyRefusalReasons });
+checkParamFeedback({ valid: false, problems: emptyRefusalReasons });
 
 const emptyRequires: [] = [];
 // @ts-expect-error - empty array cannot be NonEmptyArray
@@ -319,4 +320,167 @@ type EmptyOutputType = z.infer<typeof emptyOutputSchema>;
 
 const validAcceptedEmpty: ToolCallAccepted<never> = {
   ok: true,
+};
+
+// ==================== SingleParameterFeedback Tests ====================
+
+// Valid: SingleParameterFeedback with required problems field
+const validSinglePfProblems: SingleParameterFeedback<string> = {
+  problems: ['Invalid format'],
+};
+
+// Valid: SingleParameterFeedback with problems and normalizedValue
+const validSinglePfNormalized: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  normalizedValue: 'normalized',
+};
+
+// Valid: SingleParameterFeedback with problems and dynamicParameterSchema
+const validSinglePfDynamic: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  dynamicParameterSchema: z.enum(['a', 'b']),
+};
+
+// Valid: SingleParameterFeedback with problems and feedback
+const validSinglePfFeedback: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  feedback: ['Please correct'],
+};
+
+// Valid: SingleParameterFeedback with problems and instructions
+const validSinglePfInstructions: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  instructions: ['Follow these steps'],
+};
+
+// Valid: SingleParameterFeedback with problems and allowedValues (empty array)
+const validSinglePfEmptyAllowed: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  allowedValues: [],
+};
+
+// Valid: SingleParameterFeedback with problems and allowedValues (non-empty)
+const validSinglePfAllowed: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  allowedValues: ['valid1', 'valid2'],
+};
+
+// Valid: SingleParameterFeedback with problems and suggestedValues
+const validSinglePfSuggested: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  suggestedValues: ['valid1', 'valid2'],
+};
+
+// Valid: SingleParameterFeedback with all optional fields combined
+const validSinglePfAllFields: SingleParameterFeedback<string> = {
+  problems: ['Invalid format'],
+  normalizedValue: 'normalized',
+  dynamicParameterSchema: z.string(),
+  feedback: ['Feedback'],
+  instructions: ['Instructions'],
+  allowedValues: ['valid1'],
+};
+
+// Valid: SingleParameterFeedback with suggestedValues instead of allowedValues
+const validSinglePfAllFieldsSuggested: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  normalizedValue: 'normalized',
+  dynamicParameterSchema: z.string(),
+  feedback: ['Feedback'],
+  instructions: ['Instructions'],
+  suggestedValues: ['valid1', 'valid2'],
+};
+
+// Valid: SingleParameterFeedback with none of allowedValues/suggestedValues (empty AcceptableValues)
+const validSinglePfNoAcceptableValues: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  normalizedValue: 'normalized',
+  dynamicParameterSchema: z.string(),
+  feedback: ['Feedback'],
+  instructions: ['Instructions'],
+};
+
+// Invalid: Missing required problems field
+function expectSinglePf(x: SingleParameterFeedback<string>) {}
+// @ts-expect-error - problems is required
+expectSinglePf({
+  normalizedValue: 'normalized',
+});
+
+// Invalid: Both allowedValues and suggestedValues (violates AtMostOne)
+// @ts-expect-error - at most one of allowedValues or suggestedValues can be provided
+const invalidSinglePfBothValues: SingleParameterFeedback<string> = {
+  problems: ['Invalid'],
+  allowedValues: ['a'],
+  suggestedValues: ['b'],
+};
+
+// Invalid: Empty problems array
+function checkSinglePf(x: SingleParameterFeedback<string>) {}
+const emptyProblems: [] = [];
+// @ts-expect-error - empty array cannot be NonEmptyArray
+checkSinglePf({ problems: emptyProblems });
+
+// Invalid: Empty feedback array
+const emptyFeedbackForSinglePf: [] = [];
+// @ts-expect-error - empty array cannot be NonEmptyArray
+checkSinglePf({ problems: ['Invalid'], feedback: emptyFeedbackForSinglePf });
+
+// Invalid: Empty instructions array
+const emptyInstructionsForSinglePf: [] = [];
+// @ts-expect-error - empty array cannot be NonEmptyArray
+checkSinglePf({ problems: ['Invalid'], instructions: emptyInstructionsForSinglePf });
+
+// Invalid: Empty suggestedValues array
+const emptySuggestedForSinglePf: [] = [];
+// @ts-expect-error - empty array cannot be NonEmptyArray
+checkSinglePf({ problems: ['Invalid'], suggestedValues: emptySuggestedForSinglePf });
+
+// ==================== ToolCallRejected with Non-Record Input Types ====================
+
+// Valid: Rejected with non-record input (string) - uses SingleParameterFeedback
+const validRejectedString: ToolCallRejected<string> = {
+  ok: false,
+  problems: ['Invalid format'],
+};
+
+// Valid: Rejected with non-record input (string) - with all SingleParameterFeedback fields
+const validRejectedStringFull: ToolCallRejected<string> = {
+  ok: false,
+  problems: ['Invalid'],
+  normalizedValue: 'normalized',
+  dynamicParameterSchema: z.string(),
+  feedback: ['Feedback'],
+  instructions: ['Instructions'],
+  allowedValues: ['valid1'],
+};
+
+// Valid: Rejected with non-record input (number)
+const validRejectedNumber: ToolCallRejected<number> = {
+  ok: false,
+  problems: ['Number too large'],
+  suggestedValues: [42, 100],
+};
+
+// Valid: Rejected with non-record input (array)
+const validRejectedArray: ToolCallRejected<string[]> = {
+  ok: false,
+  problems: ['Array too short'],
+  allowedValues: [['a', 'b']],
+};
+
+// Invalid: Rejected with non-record input but missing problems (required)
+function expectRejectedString(x: ToolCallRejected<string>) {}
+// @ts-expect-error - problems is required for SingleParameterFeedback
+expectRejectedString({
+  ok: false,
+  normalizedValue: 'normalized',
+});
+
+// Invalid: Rejected with non-record input but has validationResults (not allowed for non-records)
+const invalidRejectedStringWithValidation: ToolCallRejected<string> = {
+  ok: false,
+  problems: ['Invalid'],
+  // @ts-expect-error - validationResults does not exist in ToolCallRejected for non-record inputs
+  validationResults: {},
 };

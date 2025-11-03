@@ -73,9 +73,9 @@ const searchTool = tool2agent({
     if (!q) {
       return {
         ok: false,
-        rejectionReasons: ['Missing query string'],
+        problems: ['Missing query string'],
         validationResults: {
-          q: { valid: false, refusalReasons: ['Provide a non-empty query'] },
+          q: { valid: false, problems: ['Provide a non-empty query'] },
         },
       };
     }
@@ -87,7 +87,7 @@ const searchTool = tool2agent({
         validationResults: {
           q: {
             valid: false,
-            refusalReasons: ['The requested term is not allowed by policy'],
+            problems: ['The requested term is not allowed by policy'],
             instructions: [`Try a different term, synonymous to ${q}`],
           },
         },

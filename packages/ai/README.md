@@ -65,7 +65,7 @@ export type Tool2Agent<InputType, OutputType> = Tool<
 
 ```typescript
 // Parameters of tool2agent() function:
-export type Tool2AgentOptions<
+export type Tool2AgentParams<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodType<any> = z.ZodNever,
 > = {
@@ -83,7 +83,7 @@ export function tool2agent<
 >(
   // accepts anything tool() from AI SDK accepts
 
-  params: Tool2AgentOptions<InputSchema, OutputSchema>, // this type is simplified for clarity
+  params: Tool2AgentParams<InputSchema, OutputSchema>, // this type is simplified for clarity
 ): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>;
 ```
 
@@ -93,7 +93,7 @@ export function tool2agent<
 <summary><strong>Differences between <code>tool()</code> and <code>tool2agent()</code></strong></summary>
 
 - AI SDK `tool()` does not do anything, and exists only for type checking, while `tool2agent()` builds tool's `execute()` method
-- `tool()` passes exceptions through, while `tool2agent()` catches exceptions and returns them formatted nicely to the LLM as tool2agent `rejectionReasons`
+- `tool()` passes exceptions through, while `tool2agent()` catches exceptions and returns them formatted nicely to the LLM as tool2agent `problems`
 - `tool2agent()` mandates input and output schemas. Use `never` / `z.never()` for output schema if it is not needed.
 - `tool2agent()` expects a json-serializable output type, and for this reason it does not support providing custom `toModelOutput`
 

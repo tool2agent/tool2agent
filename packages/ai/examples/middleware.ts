@@ -46,7 +46,7 @@ const evilFilterMiddleware = createMiddleware<SearchToolInput, SearchToolOutput>
             validationResults: {
               query: {
                 valid: false,
-                refusalReasons: ['the query you provided is evil which is not allowed'],
+                problems: ['the query you provided is evil which is not allowed'],
               },
             },
           } as ToolCallResult<SearchToolInput, SearchToolOutput>;
@@ -82,7 +82,7 @@ const secretsFilterMiddleware = createMiddleware<SearchToolInput, SearchToolOutp
         if (secrets.some(secret => resultString.includes(secret))) {
           return {
             ok: false,
-            rejectionReasons: ['the output contains a secret which is not allowed'],
+            problems: ['the output contains a secret which is not allowed'],
           };
         }
         return typedResult;

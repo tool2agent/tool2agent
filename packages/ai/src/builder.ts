@@ -41,7 +41,7 @@ export type BuilderState<
   readonly spec: ToolSpec<Pick<InputType, DynamicUnion>>;
 };
 
-export type FieldConfig<
+export type ToolFieldConfig<
   InputType extends Record<string, unknown>,
   K extends keyof InputType,
   Requires extends readonly Exclude<keyof InputType, K>[] = readonly Exclude<keyof InputType, K>[],
@@ -83,7 +83,7 @@ type BuilderApi<
     I extends readonly Exclude<DynamicUnion, K>[],
   >(
     key: K,
-    cfg: FieldConfig<InputType, K, R, I, Exclude<keyof InputType, DynamicUnion | K>>,
+    cfg: ToolFieldConfig<InputType, K, R, I, Exclude<keyof InputType, DynamicUnion | K>>,
   ) => BuilderApi<InputType, OutputType, Added | K, DynamicUnion>;
   // build: returns an SDK Tool with erased generics to avoid deep type instantiation at call sites
   build: (
