@@ -1,0 +1,20 @@
+{
+  "extends": "./packages/ai/tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": [
+    "packages/ai/src/**/*.ts",
+    "packages/types/src/**/*.ts",
+    "packages/schemas/src/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/dist-cjs/**",
+    "**/test/**",
+    "**/test-d/**",
+    "**/examples/**"
+  ]
+}

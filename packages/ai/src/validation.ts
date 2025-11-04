@@ -25,26 +25,26 @@ export type ToolCallResult<InputType extends Record<string, unknown>> =
  * It is used to describe the dependencies of a field,
  * as well as the validation function for the field.
  */
-export type FieldSpec<
+export type ToolInputFieldParams<
   InputType extends Record<string, unknown>,
-  Key extends keyof InputType,
-  Requires extends Exclude<keyof InputType, Key>[] = Exclude<keyof InputType, Key>[],
-  Influences extends Exclude<keyof InputType, Key>[] = Exclude<keyof InputType, Key>[],
+  FieldName extends keyof InputType,
+  Requires extends Exclude<keyof InputType, FieldName>[] = Exclude<keyof InputType, FieldName>[],
+  Influences extends Exclude<keyof InputType, FieldName>[] = Exclude<keyof InputType, FieldName>[],
   StaticFields extends keyof InputType = never,
 > = {
   requires: Requires;
   influencedBy: Influences;
   description?: string;
   validate: (
-    value: InputType[Key] | undefined,
+    value: InputType[FieldName] | undefined,
     context: Pick<InputType, Requires[number]> &
       Partial<Pick<InputType, Influences[number]>> &
       Pick<InputType, StaticFields>,
-  ) => Promise<ParameterValidationResult<InputType, Key>>;
+  ) => Promise<ParameterValidationResult<InputType, FieldName>>;
 };
 
 export type ToolSpec<InputType extends Record<string, unknown>> = {
-  [Key in keyof InputType]: FieldSpec<InputType, Key>;
+  [FieldName in keyof InputType]: ToolInputFieldParams<InputType, FieldName>;
 };
 
 export function validateToolSpec<
@@ -100,7 +100,7 @@ export async function validate<
     type Key = typeof dynamicField;
     type Value = InputType[Key];
 
-    const fieldSpec: FieldSpec<InputType, Key> = spec[dynamicField]!;
+    const fieldSpec: ToolInputFieldParams<InputType, Key> = spec[dynamicField]!;
     // Dynamic fields are optional in DynamicInputType
     const value: Value | undefined = (loose as Partial<InputType>)[dynamicField];
 
@@ -190,9 +190,9 @@ function sortFields<
 // Type for the context passed to validate functions
 export type ContextFor<InputType extends Record<string, unknown>, K extends keyof InputType> = Pick<
   InputType,
-  FieldSpec<InputType, K>['requires'][number]
+  ToolInputFieldParams<InputType, K>['requires'][number]
 > &
-  Partial<Pick<InputType, FieldSpec<InputType, K>['influencedBy'][number]>> &
+  Partial<Pick<InputType, ToolInputFieldParams<InputType, K>['influencedBy'][number]>> &
   Partial<InputType>;
 
 export type BuildContextResult<
@@ -203,7 +203,7 @@ export type BuildContextResult<
   | { success: false; missingRequirements: NonEmptyArray<keyof InputType> };
 
 export function buildContext<InputType extends Record<string, unknown>, K extends keyof InputType>(
-  rule: FieldSpec<InputType, K>,
+  rule: ToolInputFieldParams<InputType, K>,
   fieldKey: K,
   validFields: Partial<InputType>,
   dynamicSet: Set<keyof InputType>,

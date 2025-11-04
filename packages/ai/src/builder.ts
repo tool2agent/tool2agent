@@ -1,23 +1,63 @@
 import z from 'zod';
 import { tool, ToolCallOptions } from 'ai';
-import { validate, type FieldSpec, type ToolSpec, validateToolSpec } from './validation.js';
+import {
+  validate,
+  type ToolInputFieldParams,
+  type ToolSpec,
+  validateToolSpec,
+} from './validation.js';
 import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
 import { Tool2Agent } from './tool2agent.js';
 
+/** Parameters for creating a tool builder.
+ * @template InputSchema - The Zod schema for the tool's input (must be a schema of a record).
+ * @template OutputSchema - The Zod schema for the tool's output. Can be z.never() for tools that do not return a value.
+ * @template DynamicFields - The keys of InputSchema that are dynamic (allows the LLM to provide them incrementally).
+ */
 export type ToolBuilderParams<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodTypeAny,
-  DynamicKeys extends keyof z.infer<InputSchema>,
+  DynamicFields extends keyof z.infer<InputSchema>,
 > = {
+  /** The Zod schema defining the tool's input structure. */
   inputSchema: InputSchema;
+  /** The Zod schema defining the tool's output structure. */
   outputSchema: OutputSchema;
-  dynamicFields: readonly DynamicKeys[];
+  /** Array of field names from InputSchema that are dynamic (will be made optional at runtime). */
+  dynamicFields: readonly DynamicFields[];
+  /** Optional description of the tool for the LLM. */
   description?: string;
+  /** Function that executes the tool after all dynamic fields have passed validation.
+   *
+   * The input parameter is fully validated and matches the InputSchema (all required fields are present).
+   *
+   * Must return a {@link ToolCallResult} that indicates success or failure:
+   * - Success: `{ ok: true, ...output }` where output matches OutputSchema (if OutputSchema is a record, spread it directly; otherwise use `{ value: output }`)
+   * - Failure: `{ ok: false, validationResults: {...}, problems: [...], feedback: [...], instructions: [...], ... }` with structured feedback
+   *
+   * @param input - Fully validated input matching InputSchema.
+   * @returns A Promise resolving to a ToolCallResult indicating success or failure with feedback.
+   */
   execute: (
     input: z.infer<InputSchema>,
   ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
 };
 
+/** Creates a type where dynamic fields are optional and static fields remain required.
+ *
+ * This type is used internally by `toolBuilder` to represent the input type that the LLM can provide
+ * incrementally. Dynamic fields are made optional, while static fields optionality is preserved.
+ *
+ * @template InputType - The full input type (typically inferred from a Zod schema).
+ * @template DynamicFields - The keys of InputType that are dynamic (can be provided incrementally).
+ *
+ * @example
+ * ```typescript
+ * type Input = { name: string; age: number; email: string };
+ * type Dynamic = DynamicInputType<Input, 'email'>;
+ * // Result: { name: string; age: number; email?: string }
+ * ```
+ */
 export type DynamicInputType<
   InputType extends Record<string, unknown>,
   DynamicFields extends keyof InputType,
@@ -27,6 +67,18 @@ export type DynamicInputType<
   [K in Exclude<keyof InputType, DynamicFields>]: InputType[K];
 };
 
+/** Creates a type where dynamic fields are optional and static fields remain required, inferred from a Zod schema.
+ *
+ * @template InputSchema - The Zod object schema defining the input structure.
+ * @template DynamicFields - The keys of the inferred input type that are dynamic (can be provided incrementally).
+ *
+ * @example
+ * ```typescript
+ * const schema = z.object({ name: z.string(), age: z.number(), email: z.string() });
+ * type Dynamic = DynamicInput<typeof schema, 'email'>;
+ * // Result: { name: string; age: number; email?: string }
+ * ```
+ */
 export type DynamicInput<
   InputSchema extends z.ZodObject<any>,
   DynamicFields extends keyof z.infer<InputSchema>,
@@ -73,20 +125,26 @@ type ToolDefinition<InputSchema extends z.ZodTypeAny, InputType, OutputType> = {
   execute: (input: InputType, options: ToolCallOptions) => Promise<OutputType>;
 };
 
-type BuilderApi<
+export type BuilderApi<
   InputType extends Record<string, unknown>,
   OutputType,
   Added extends keyof InputType,
   DynamicUnion extends keyof InputType,
 > = {
   field: <
-    K extends Exclude<DynamicUnion, Added>,
-    R extends readonly Exclude<DynamicUnion, K>[],
-    I extends readonly Exclude<DynamicUnion, K>[],
+    FieldName extends Exclude<DynamicUnion, Added>,
+    Requirements extends readonly Exclude<DynamicUnion, FieldName>[],
+    InfluencedBy extends readonly Exclude<DynamicUnion, FieldName>[],
   >(
-    key: K,
-    cfg: ToolFieldConfig<InputType, K, R, I, Exclude<keyof InputType, DynamicUnion | K>>,
-  ) => BuilderApi<InputType, OutputType, Added | K, DynamicUnion>;
+    key: FieldName,
+    cfg: ToolFieldConfig<
+      InputType,
+      FieldName,
+      Requirements,
+      InfluencedBy,
+      Exclude<keyof InputType, DynamicUnion | FieldName>
+    >,
+  ) => BuilderApi<InputType, OutputType, Added | FieldName, DynamicUnion>;
   // build: returns an SDK Tool with erased generics to avoid deep type instantiation at call sites
   build: (
     ...args: Exclude<DynamicUnion, Added> extends never ? [] : [arg: never]
@@ -158,22 +216,45 @@ function buildToolLoose<
 }
 
 /** Creates a builder for tool definitions.
- * Use `.field(...)` for each field in the `InputSchema`, and then
- * call `.build()` to get the tool.
- * If you miss any of the fields, `.build()` will error on the type level.
- * @param params - The parameters for the tool.
- * @param params.inputSchema - The schema for the input of the tool.
- * @param params.outputSchema - The schema for the output of the tool.
- * @param params.description - The description of the tool.
- * @param params.execute - The function to execute the tool, that will be called with the validated input. Must accept a value corresponding to inputSchema, and return a ToolCallResult.
- * @returns A builder object for the tool.
+ *
+ * Use `.field(...)` for each dynamic field in the `InputSchema`, and then
+ * call `.build()` to get the tool. The builder ensures type safety by requiring
+ * all dynamic fields to be configured before building.
+ *
+ * The `execute` function receives fully validated input (after all dynamic fields
+ * pass their validation) and must return a {@link ToolCallResult}:
+ * - For success: `{ ok: true, ...output }` (spread output directly if OutputSchema is a record, otherwise use `{ value: output }`)
+ * - For failure: `{ ok: false, validationResults: {...}, problems: [...], feedback: [...], instructions: [...], ... }` with structured feedback
+ *
+ * @param toolParams - The parameters for the tool builder.
+ * @param toolParams.inputSchema - The Zod schema for the input of the tool (must be a schema of a record).
+ * @param toolParams.outputSchema - The Zod schema for the output of the tool. Can be z.never() for tools that do not return a value.
+ * @param toolParams.dynamicFields - Array of field names from InputSchema that are dynamic (will be made optional at runtime). Must be typed `as const`.
+ * @param toolParams.description - Description of the tool for the LLM.
+ * @param toolParams.execute - Function that executes the tool with validated input. Called only after all dynamic fields pass validation. Must return a {@link ToolCallResult}.
+ * @returns A builder object with `.field()` and `.build()` methods.
+ *
+ * @example
+ * ```typescript
+ * const tool = toolBuilder({
+ *   inputSchema: z.object({ name: z.string(), age: z.number() }),
+ *   outputSchema: z.object({ greeting: z.string() }),
+ *   dynamicFields: ['name', 'age'],
+ *   execute: async (input) => {
+ *     return { ok: true, greeting: `Hello, ${input.name}!` };
+ *   },
+ * })
+ *   .field('name', { ... })
+ *   .field('age', { ... })
+ *   .build();
+ * ```
  */
 export function toolBuilder<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodTypeAny,
   DynamicFields extends keyof z.infer<InputSchema> & string,
 >(
-  params: ToolBuilderParams<InputSchema, OutputSchema, DynamicFields>,
+  toolParams: ToolBuilderParams<InputSchema, OutputSchema, DynamicFields>,
 ): BuilderApi<z.infer<InputSchema>, z.infer<OutputSchema>, never, DynamicFields> {
   type InputType = z.infer<InputSchema>;
   type OutputType = z.infer<OutputSchema>;
@@ -185,40 +266,40 @@ export function toolBuilder<
     spec: state.spec,
     /**
      * Populates the tool specification with a new field.
-     * @param key - The key of the field to add.
-     * @param cfg - The configuration for the field.
-     * @param cfg.requires - The fields that are required for the validation of this field.
-     * @param cfg.influencedBy - The fields that are used to influence the validation of this field (optional dependencies)
-     * @param cfg.description - The description of the field for the schema.
-     * @param cfg.validate - The validation function for the field value.
+     * @param name - The key of the field to add.
+     * @param fieldParams - The configuration for the field.
+     * @param fieldParams.requires - The fields that are required for the validation of this field.
+     * @param fieldParams.influencedBy - The fields that are used to influence the validation of this field (optional dependencies)
+     * @param fieldParams.description - The description of the field for the schema.
+     * @param fieldParams.validate - The validation function for the field value.
      * @returns A new builder with the field added.
      */
-    field: (key, cfg) => {
-      const normalizedCfg: FieldSpec<
+    field: (name, fieldParams) => {
+      const normalizedCfg: ToolInputFieldParams<
         InputType,
-        typeof key,
-        Exclude<keyof InputType, typeof key>[],
-        Exclude<keyof InputType, typeof key>[],
-        Exclude<keyof InputType, DynamicFields | typeof key>
+        typeof name,
+        Exclude<keyof InputType, typeof name>[],
+        Exclude<keyof InputType, typeof name>[],
+        Exclude<keyof InputType, DynamicFields | typeof name>
       > = {
-        requires: [...cfg.requires] as Exclude<keyof InputType, typeof key>[],
-        influencedBy: [...cfg.influencedBy] as Exclude<keyof InputType, typeof key>[],
-        description: cfg.description,
-        validate: cfg.validate as FieldSpec<
+        requires: [...fieldParams.requires] as Exclude<keyof InputType, typeof name>[],
+        influencedBy: [...fieldParams.influencedBy] as Exclude<keyof InputType, typeof name>[],
+        description: fieldParams.description,
+        validate: fieldParams.validate as ToolInputFieldParams<
           InputType,
-          typeof key,
-          Exclude<keyof InputType, typeof key>[],
-          Exclude<keyof InputType, typeof key>[],
-          Exclude<keyof InputType, DynamicFields | typeof key>
+          typeof name,
+          Exclude<keyof InputType, typeof name>[],
+          Exclude<keyof InputType, typeof name>[],
+          Exclude<keyof InputType, DynamicFields | typeof name>
         >['validate'],
       };
-      const nextSpec: ToolSpec<Pick<InputType, DynamicFields | typeof key>> = {
+      const nextSpec: ToolSpec<Pick<InputType, DynamicFields | typeof name>> = {
         ...state.spec,
-        [key]: normalizedCfg,
+        [name]: normalizedCfg,
       };
       const next: BuilderState<InputType, DynamicFields> = { spec: nextSpec };
-      return makeApi<InputSchema, OutputSchema, InputType, OutputType, typeof key, DynamicFields>(
-        params,
+      return makeApi<InputSchema, OutputSchema, InputType, OutputType, typeof name, DynamicFields>(
+        toolParams,
         next,
       );
     },
@@ -231,7 +312,7 @@ export function toolBuilder<
       // Build spec from provided fields
       const provided = state.spec;
       return buildToolLoose<InputSchema, OutputSchema, DynamicFields>(
-        params,
+        toolParams,
         provided,
       ) as Tool2Agent<DynamicInputType<InputType, DynamicFields>, OutputType>;
     }) as BuilderApi<InputType, OutputType, never, DynamicFields>['build'],
@@ -251,7 +332,7 @@ function makeApi<
 ): BuilderApi<InputType, OutputType, Added, DynamicUnion> {
   return {
     field: (key, cfg) => {
-      const normalizedCfg: FieldSpec<
+      const normalizedCfg: ToolInputFieldParams<
         InputType,
         typeof key,
         Exclude<keyof InputType, typeof key>[],
@@ -261,7 +342,7 @@ function makeApi<
         requires: [...cfg.requires] as Exclude<keyof InputType, typeof key>[],
         influencedBy: [...cfg.influencedBy] as Exclude<keyof InputType, typeof key>[],
         description: cfg.description,
-        validate: cfg.validate as FieldSpec<
+        validate: cfg.validate as ToolInputFieldParams<
           InputType,
           typeof key,
           Exclude<keyof InputType, typeof key>[],

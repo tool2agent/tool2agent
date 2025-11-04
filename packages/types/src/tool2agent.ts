@@ -29,13 +29,13 @@ export type ToolCallSuccess<OutputType> = {
   FeedbackAndInstructions;
 
 /**
- * If T is a record, we use it directly.
+ * If OutputType is a record, we use it directly.
  * Otherwise, we wrap it in a value field.
  */
-type OutputAsRecord<T> = [T] extends [Record<string, unknown>]
-  ? T
+export type OutputAsRecord<OutputType> = [OutputType] extends [Record<string, unknown>]
+  ? OutputType
   : {
-      value: T;
+      value: OutputType;
     };
 
 export type FeedbackAndInstructions = {
