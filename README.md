@@ -8,7 +8,7 @@ Real-world domain constraints are complex, dynamic, and non-publicly-known — i
 
 Technically speaking, tool2agent is a set of conventions that allow structuring tool call feedback flows in a predictable manner. These conventions enable [novel tooling](./packages/ai/) for agent builders.
 
-![LLM](https://raw.githubusercontent.com/promptware/tool2agent/master/img/slide-1.png)
+![LLM](https://raw.githubusercontent.com/tool2agent/tool2agent/master/img/slide-1.png)
 
 ## Problems and solutions
 

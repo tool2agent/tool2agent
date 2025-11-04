@@ -39,11 +39,11 @@
   "license": "Unlicense",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/promptware/tool2agent.git"
+    "url": "git+https://github.com/tool2agent/tool2agent.git"
   },
-  "homepage": "https://github.com/promptware/tool2agent#readme",
+  "homepage": "https://github.com/tool2agent/tool2agent#readme",
   "bugs": {
-    "url": "https://github.com/promptware/tool2agent/issues"
+    "url": "https://github.com/tool2agent/tool2agent/issues"
   },
   "readme": "README.md",
   "devDependencies": {

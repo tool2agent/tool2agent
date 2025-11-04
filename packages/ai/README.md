@@ -1,6 +1,6 @@
 # @tool2agent/ai
 
-[tool2agent](https://github.com/promptware/tool2agent) interface for AI SDK.
+[tool2agent](https://github.com/tool2agent/tool2agent) interface for AI SDK.
 
 ```bash
 pnpm install @tool2agent/ai
@@ -12,9 +12,9 @@ import { tool2agent, toolBuilder } from '@tool2agent/ai';
 
 ## Motivation
 
-[tool2agent](https://github.com/promptware/tool2agent) is a protocol that enables LLM agents to navigate complex business constraints via trial and error by communicating rich and structured feedback data from tools.
+[tool2agent](https://github.com/tool2agent/tool2agent) is a protocol that enables LLM agents to navigate complex business constraints via trial and error by communicating rich and structured feedback data from tools.
 
-[Read more about tool2agent](https://github.com/promptware/tool2agent?tab=readme-ov-file#about)
+[Read more about tool2agent](https://github.com/tool2agent/tool2agent?tab=readme-ov-file#about)
 
 ## About
 
