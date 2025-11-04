@@ -48,8 +48,14 @@ jobs:
         run: pnpm --filter @tool2agent/types test
 
       - name: Run tests
-        if: matrix.zod == 4
+        if: matrix.zod == 4 && matrix.node-version == '22.x'
         run: pnpm run test
+
+      - name: Run tests
+        if: matrix.zod == 4 && matrix.node-version == '18.x'
+        run: |
+          pnpm run -r test:types
+          pnpm run -r test:unit
 
       - name: Check formatting
         run: pnpm run format:check

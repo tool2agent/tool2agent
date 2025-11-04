@@ -29,7 +29,7 @@
     "clean": "rm -rf dist dist-cjs",
     "test": "pnpm run test:types && pnpm run test:runtime",
     "test:types": "tsc --project test-d/tsconfig.json",
-    "test:runtime": "tsc --project test/tsconfig.json && tsx test/*.test.ts",
+    "test:unit": "tsc --project test/tsconfig.json && tsx test/*.test.ts",
     "prepack": "pnpm run build"
   },
   "keywords": [
