@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { buildContext, type FieldSpec } from '../src/validation.js';
+import { buildContext, type ToolInputFieldParams } from '../src/validation.js';
 
 describe('buildContext', () => {
   type TestInput = {
@@ -12,7 +12,7 @@ describe('buildContext', () => {
   };
 
   it('includes required fields', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: ['a', 'b'],
       influencedBy: [],
       validate: async () => ({ valid: true }),
@@ -35,7 +35,7 @@ describe('buildContext', () => {
   });
 
   it('includes influencedBy fields when present', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: ['a'],
       influencedBy: ['b'],
       validate: async () => ({ valid: true }),
@@ -58,7 +58,7 @@ describe('buildContext', () => {
   });
 
   it('excludes influencedBy fields when missing', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: ['a'],
       influencedBy: ['b'],
       validate: async () => ({ valid: true }),
@@ -80,7 +80,7 @@ describe('buildContext', () => {
   });
 
   it('includes static fields', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: [],
       influencedBy: [],
       validate: async () => ({ valid: true }),
@@ -103,7 +103,7 @@ describe('buildContext', () => {
   });
 
   it('excludes current field from context', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: [],
       influencedBy: [],
       validate: async () => ({ valid: true }),
@@ -125,7 +125,7 @@ describe('buildContext', () => {
   });
 
   it('excludes dynamic fields from static fields', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: [],
       influencedBy: [],
       validate: async () => ({ valid: true }),
@@ -150,7 +150,7 @@ describe('buildContext', () => {
   });
 
   it('combines required, influencedBy, and static fields', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: ['a'],
       influencedBy: ['b'],
       validate: async () => ({ valid: true }),
@@ -177,7 +177,7 @@ describe('buildContext', () => {
   });
 
   it('returns missingRequirements when required fields are missing', () => {
-    const rule: FieldSpec<TestInput, 'c'> = {
+    const rule: ToolInputFieldParams<TestInput, 'c'> = {
       requires: ['a', 'b'],
       influencedBy: [],
       validate: async () => ({ valid: true }),
