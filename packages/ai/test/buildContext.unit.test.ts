@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { buildContext, type ToolInputFieldParams } from '../src/validation.js';
+import { buildContext, type ToolFieldConfig } from '../src/index.js';
 
 describe('buildContext', () => {
   type TestInput = {
@@ -12,9 +12,8 @@ describe('buildContext', () => {
   };
 
   it('includes required fields', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: ['a', 'b'],
-      influencedBy: [],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -34,10 +33,9 @@ describe('buildContext', () => {
     });
   });
 
-  it('includes influencedBy fields when present', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+  it('includes other dynamic fields when present', () => {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: ['a'],
-      influencedBy: ['b'],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -57,10 +55,9 @@ describe('buildContext', () => {
     });
   });
 
-  it('excludes influencedBy fields when missing', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+  it('excludes other dynamic fields when missing', () => {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: ['a'],
-      influencedBy: ['b'],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -80,9 +77,8 @@ describe('buildContext', () => {
   });
 
   it('includes static fields', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: [],
-      influencedBy: [],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -103,9 +99,8 @@ describe('buildContext', () => {
   });
 
   it('excludes current field from context', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: [],
-      influencedBy: [],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -124,10 +119,9 @@ describe('buildContext', () => {
     });
   });
 
-  it('excludes dynamic fields from static fields', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+  it('includes dynamic fields as optional in context', () => {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: [],
-      influencedBy: [],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -143,16 +137,17 @@ describe('buildContext', () => {
     expect(result).to.deep.equal({
       success: true,
       context: {
+        a: 'dynamic-a',
+        b: 42,
         d: 'static-d',
         e: 100,
       },
     });
   });
 
-  it('combines required, influencedBy, and static fields', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+  it('combines required, other dynamic fields, and static fields', () => {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: ['a'],
-      influencedBy: ['b'],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {
@@ -177,9 +172,8 @@ describe('buildContext', () => {
   });
 
   it('returns missingRequirements when required fields are missing', () => {
-    const rule: ToolInputFieldParams<TestInput, 'c'> = {
+    const rule: ToolFieldConfig<TestInput, 'c'> = {
       requires: ['a', 'b'],
-      influencedBy: [],
       validate: async () => ({ valid: true }),
     };
     const validFields: Partial<TestInput> = {

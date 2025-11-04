@@ -1,8 +1,12 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { validate, type ToolSpec, type ToolCallRejected } from '../src/validation.js';
+import {
+  validateToolInput,
+  type ToolSpec,
+  type ToolCallRejected,
+  HiddenSpecSymbol,
+} from '../src/index.js';
 import { toposortFields } from '../src/graph.js';
-import { HiddenSpecSymbol } from '../src/builder.js';
 import { mkAirlineBookingTool } from './airline.js';
 
 type Airline = {
@@ -36,7 +40,7 @@ const dynamicFields: (keyof Airline)[] = ['departure', 'arrival', 'date', 'passe
 
 describe('validation.unit.test.ts', () => {
   it('#1 validate rejects when fields are missing and provides allowedValues', async () => {
-    const res = await validate(spec, {});
+    const res = await validateToolInput(spec, {});
     const expected: ToolCallRejected<Airline> = {
       status: 'rejected',
       validationResults: {
@@ -54,7 +58,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#2 rejects invalid dependent value with filtered allowedValues (arrival given departure)', async () => {
-    const res = await validate(spec, { departure: 'London', arrival: 'Tokyo' });
+    const res = await validateToolInput(spec, { departure: 'London', arrival: 'Tokyo' });
     console.log(JSON.stringify(toposortFields(spec), null, 2));
     const expected: ToolCallRejected<Airline> = {
       status: 'rejected',
@@ -73,7 +77,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#3 rejects with allowed options when date invalid and passengers too large for available seats', async () => {
-    const res = await validate(spec, {
+    const res = await validateToolInput(spec, {
       departure: 'London',
       arrival: 'New York',
       date: '2026-10-02',
@@ -95,7 +99,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#4 accepts a valid full selection', async () => {
-    const res = await validate(spec, {
+    const res = await validateToolInput(spec, {
       departure: 'Berlin',
       arrival: 'London',
       date: '2026-10-04',
@@ -109,7 +113,7 @@ describe('validation.unit.test.ts', () => {
   });
 
   it('#5 options are always included even when rejected', async () => {
-    const res = await validate(spec, { departure: 'Paris', passengers: 1000 });
+    const res = await validateToolInput(spec, { departure: 'Paris', passengers: 1000 });
     const expected = {
       status: 'rejected' as const,
       validationResults: {

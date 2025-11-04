@@ -1,6 +1,6 @@
 import z from 'zod';
 import { generateText } from 'ai';
-import { toolBuilder } from '../src/builder.js';
+import { toolBuilder } from '../src/index.js';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
 
@@ -30,26 +30,29 @@ const tool1 = toolBuilder({
   },
 })
   .field('departure', {
-    requires: [],
-    // @ts-expect-error influencedBy must include existing fields
-    influencedBy: ['nonexistent'],
+    // @ts-expect-error nonexistent field is not allowed, even as option
+    requires: ['nonexistent'],
     description: 'City of departure',
-    validate: async (value: string | undefined, context: { arrival?: string }) => {
+    validate: async (
+      value: string | undefined,
+      context: { arrival?: string; date?: string; passengers?: number },
+    ) => {
       return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
     },
   })
   .field('arrival', {
     requires: ['departure'],
-    influencedBy: ['date'],
     description: 'City of arrival',
     // @ts-expect-error value must be string | undefined
-    validate: async (value: null | undefined, context: { departure: string; date?: string }) => {
+    validate: async (
+      value: null | undefined,
+      context: { departure: string; date?: string; passengers?: number },
+    ) => {
       return {} as any as ParameterValidationResult<AirlineBooking, 'arrival'>;
     },
   })
   .field('date', {
     requires: ['departure'],
-    influencedBy: ['passengers'],
     description: 'Date of departure',
     // @ts-expect-error arrival is not in required list
     validate: async (
@@ -66,7 +69,6 @@ const buildCheckedTool1 = tool1.build();
 const bookFlight = tool1
   .field('passengers', {
     requires: ['departure', 'arrival', 'date'],
-    influencedBy: [],
     description: 'Number of passengers',
     validate: async (
       value: number | undefined,

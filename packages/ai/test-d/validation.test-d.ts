@@ -1,4 +1,4 @@
-import { validateToolSpec, type ToolSpec } from '../src/validation.js';
+import { validateToolSpec, type ToolSpec } from '../src/index.js';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
 
@@ -13,8 +13,10 @@ type Airline = {
 const validSpec = {
   departure: {
     requires: [],
-    influencedBy: ['arrival'],
-    validate: async (value: unknown, context: { arrival?: string }) => ({
+    validate: async (
+      value: unknown,
+      context: { arrival?: string; date?: string; passengers?: number },
+    ) => ({
       allowedValues: ['London', 'Berlin'],
       valid: true,
       normalizedValue: 'London',
@@ -22,8 +24,10 @@ const validSpec = {
   },
   arrival: {
     requires: ['departure'],
-    influencedBy: ['date'],
-    validate: async (value: unknown, context: { departure: string; date?: string }) => ({
+    validate: async (
+      value: unknown,
+      context: { departure: string; date?: string; passengers?: number },
+    ) => ({
       allowedValues: ['New York'],
       valid: true,
       normalizedValue: 'New York',
@@ -31,7 +35,6 @@ const validSpec = {
   },
   date: {
     requires: ['departure', 'arrival'],
-    influencedBy: ['passengers'],
     validate: async (
       value: unknown,
       context: { departure: string; arrival: string; passengers?: number },
@@ -39,7 +42,6 @@ const validSpec = {
   },
   passengers: {
     requires: ['departure', 'arrival', 'date'],
-    influencedBy: [],
     validate: async (
       value: unknown,
       context: { departure: string; arrival: string; date: string },
@@ -53,7 +55,6 @@ const badRequires: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'pa
   departure: {
     // @ts-expect-error - nonexistent field in requires
     requires: ['nonexistent'],
-    influencedBy: [],
     validate: async () => ({
       allowedValues: ['London'],
       valid: true,
@@ -62,7 +63,6 @@ const badRequires: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'pa
   },
   arrival: {
     requires: [],
-    influencedBy: [],
     validate: async () => ({
       allowedValues: ['New York'],
       valid: true,
@@ -71,7 +71,6 @@ const badRequires: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'pa
   },
   date: {
     requires: [],
-    influencedBy: [],
     validate: async () => ({
       allowedValues: ['2026-10-01'],
       valid: true,
@@ -80,16 +79,14 @@ const badRequires: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'pa
   },
   passengers: {
     requires: [],
-    influencedBy: [],
     validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
   },
 };
 
-// Invalid: fetchOptions param types must match requires/influencedBy
+// Invalid: context param types must match requires
 const badFetchTypes = {
   departure: {
     requires: [],
-    influencedBy: ['arrival'],
     // @ts-expect-error - arrival should be string | undefined; wrong type provided
     validate: async (value: unknown, context: { arrival?: number }) => ({
       allowedValues: ['London'],
@@ -99,7 +96,6 @@ const badFetchTypes = {
   },
   arrival: {
     requires: [],
-    influencedBy: [],
     validate: async () => ({
       allowedValues: ['New York'],
       valid: true,
@@ -108,7 +104,6 @@ const badFetchTypes = {
   },
   date: {
     requires: [],
-    influencedBy: [],
     validate: async () => ({
       allowedValues: ['2026-10-01'],
       valid: true,
@@ -117,44 +112,6 @@ const badFetchTypes = {
   },
   passengers: {
     requires: [],
-    influencedBy: [],
-    validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
-  },
-} satisfies ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;
-
-// Invalid: influencedBy references a non-existing field
-const badInfluences = {
-  departure: {
-    requires: [],
-    // @ts-expect-error - non-existing field in influencedBy
-    influencedBy: ['ghost'],
-    validate: async () => ({
-      allowedValues: ['London'],
-      valid: true,
-      normalizedValue: 'London',
-    }),
-  },
-  arrival: {
-    requires: [],
-    influencedBy: [],
-    validate: async () => ({
-      allowedValues: ['New York'],
-      valid: true,
-      normalizedValue: 'New York',
-    }),
-  },
-  date: {
-    requires: [],
-    influencedBy: [],
-    validate: async () => ({
-      allowedValues: ['2026-10-01'],
-      valid: true,
-      normalizedValue: '2026-10-01',
-    }),
-  },
-  passengers: {
-    requires: [],
-    influencedBy: [],
     validate: async () => ({ allowedValues: [1], valid: true, normalizedValue: 1 }),
   },
 } satisfies ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;

@@ -1,8 +1,8 @@
 import z from 'zod';
-import { toolBuilder } from '../src/builder.js';
+import { toolBuilder } from '../src/index.js';
 import { AirlineSchedule, FlightEntry, FlightFilters } from './airline-schedule.js';
 import { uniq } from './utils.js';
-import { Tool2Agent } from '../src/tool2agent.js';
+import { Tool2Agent } from '../src/index.js';
 import { type ToolCallResult } from '@tool2agent/types';
 
 // This code is runnable with `pnpm run example:airline-booking-chat` from the `packages/ai` directory.
@@ -66,20 +66,18 @@ export const mkAirlineBookingTool = (
       // It is reasonable to assume that the first thing we want to know is WHERE we are going to fly from,
       // hence we don't need any other fields to validate the departure.
       requires: [],
-      // `influencedBy` introduces "optional dependencies":
-      // If we know the arrival, we can narrow the scope of possible departures.
-      // But if we don't, we can still offer some options.
-      influencedBy: ['arrival'],
       description: 'City of departure',
       // This is the core of our logic.
       // Arguments:
       // - `value`: either departure string if provided, or `undefined` if the user did not pass it.
       // - `context`: an object with the fields that are already known to the LLM.
-      //   - `arrival`: the city of arrival, if known. We put it in influencedBy, hence it is an optional argument.
       //
       // The type-level machinery provides us some static checks.
       // Try making `arrival` argument non-optional below, and notice the type error.
-      validate: async (value: string | undefined, context: { arrival?: string }) => {
+      validate: async (
+        value: string | undefined,
+        context: { arrival?: string; date?: string; passengers?: number },
+      ) => {
         // We have a convenience utility to give us available flights for given filters.
         const filter: FlightFilters = context;
         const availableFlights = schedule.getAvailableFlights(filter);
@@ -95,12 +93,11 @@ export const mkAirlineBookingTool = (
     })
     .field('arrival', {
       requires: ['departure'],
-      influencedBy: ['date'],
       description: 'City of arrival',
       validate: async (
         value: string | undefined,
         // Here, we have `departure` as a requirement, hence we will only start validating this field's value once we have a valid departure.
-        context: { departure: string; date?: string },
+        context: { departure: string; date?: string; passengers?: number },
       ) => {
         const filter: FlightFilters = context;
         const availableFlights = schedule.getAvailableFlights(filter);
@@ -113,7 +110,6 @@ export const mkAirlineBookingTool = (
     })
     .field('date', {
       requires: ['departure', 'arrival'],
-      influencedBy: ['passengers'],
       description: 'Date of departure',
       validate: async (
         value: string | undefined,
@@ -133,7 +129,6 @@ export const mkAirlineBookingTool = (
     })
     .field('passengers', {
       requires: ['departure', 'arrival', 'date'],
-      influencedBy: [],
       description: 'Number of passengers',
       validate: async (
         value: number | undefined,

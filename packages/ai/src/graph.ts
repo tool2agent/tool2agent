@@ -1,6 +1,4 @@
-export function detectRequiresCycles(
-  spec: Record<string, { requires: string[]; influencedBy: string[] }>,
-): string[][] {
+export function detectRequiresCycles(spec: Record<string, { requires: string[] }>): string[][] {
   const visited = new Set<string>();
   const inStack = new Set<string>();
   const cycles: string[][] = [];
@@ -35,12 +33,11 @@ export function detectRequiresCycles(
 /**
  * Topologically sort fields based on `requires` dependencies.
  * - Nodes with no `requires` come first.
- * - Among ready nodes (in-degree 0), prefer those with fewer `influencedBy` entries,
- *   then break ties deterministically by key name.
+ * - Break ties deterministically by key name.
  */
-export function toposortFields<
-  S extends Record<string, { requires: readonly string[]; influencedBy?: readonly string[] }>,
->(spec: S): (keyof S)[] {
+export function toposortFields<S extends Record<string, { requires: readonly string[] }>>(
+  spec: S,
+): (keyof S)[] {
   const keys = Object.keys(spec) as (keyof S)[];
   const inDegree = new Map<keyof S, number>();
   const dependents = new Map<keyof S, (keyof S)[]>();
@@ -59,11 +56,8 @@ export function toposortFields<
     }
   }
 
-  // Helper to sort ready set by tie-breakers
+  // Helper to sort ready set by tie-breaker (alphabetical order)
   const sortReady = (a: keyof S, b: keyof S) => {
-    const aInf = spec[a].influencedBy?.length ?? 0;
-    const bInf = spec[b].influencedBy?.length ?? 0;
-    if (aInf !== bInf) return aInf - bInf; // fewer influencedBy first
     const aKey = String(a);
     const bKey = String(b);
     return aKey.localeCompare(bKey);

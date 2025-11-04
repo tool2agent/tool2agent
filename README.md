@@ -12,7 +12,7 @@ Technically speaking, tool2agent is a set of conventions that allow structuring 
 
 ## Problems and solutions
 
-### Tool schemas are not enough
+### Motivation
 
 Tool schemas alone are often not sufficient to convey enough information about expected inputs, so error-and-retry LLM workflows are needed.
 

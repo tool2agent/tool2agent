@@ -1,5 +1,5 @@
 import z from 'zod';
-import { toolBuilder } from '../src/builder.js';
+import { toolBuilder } from '../src/index.js';
 import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
 
 // This type is used as fully validated input for the tool's execute function
@@ -28,7 +28,6 @@ const builder = toolBuilder({
 
 builder.field('departure', {
   requires: [],
-  influencedBy: [],
   // @ts-expect-error unknown field is not allowed, even as option
   validate: async (value: string | undefined, context: { unknown?: string }) => {
     return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
@@ -37,7 +36,6 @@ builder.field('departure', {
 
 builder.field('departure', {
   requires: [],
-  influencedBy: [],
   // @ts-expect-error type of a static field is wrong
   validate: async (value: string | undefined, context: { date: number }) => {
     return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
@@ -46,7 +44,6 @@ builder.field('departure', {
 
 builder.field('departure', {
   requires: [],
-  influencedBy: [],
   // @ts-expect-error presence of a static field is wrong, must be optional
   validate: async (value: string | undefined, context: { passengers: number }) => {
     return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
@@ -56,7 +53,6 @@ builder.field('departure', {
 builder.field('departure', {
   // @ts-expect-error date is not a dynamic field, cannot be in requires
   requires: ['date'],
-  influencedBy: [],
   validate: async (value: string | undefined, context: { passengers?: number }) => {
     return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
   },
@@ -65,7 +61,6 @@ builder.field('departure', {
 builder
   .field('departure', {
     requires: [],
-    influencedBy: ['arrival'],
     description: 'City of departure',
     validate: async (
       value: string | undefined,
@@ -74,13 +69,12 @@ builder
       return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
     },
   })
-  // @ts-expect-error build is not available, missing `passengers` field specification
+  // @ts-expect-error build is not available, missing `arrival` field specification
   .build();
 
 const bookFlight = builder
   .field('departure', {
     requires: [],
-    influencedBy: ['arrival'],
     description: 'City of departure',
     validate: async (
       value: string | undefined,
@@ -91,7 +85,6 @@ const bookFlight = builder
   })
   .field('arrival', {
     requires: ['departure'],
-    influencedBy: [],
     description: 'City of arrival',
     validate: async (
       value: string | undefined,
