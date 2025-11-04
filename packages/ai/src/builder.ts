@@ -13,7 +13,9 @@ export type ToolBuilderParams<
   outputSchema: OutputSchema;
   dynamicFields: readonly DynamicKeys[];
   description?: string;
-  execute: (input: z.infer<InputSchema>) => Promise<z.infer<OutputSchema>>;
+  execute: (
+    input: z.infer<InputSchema>,
+  ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
 };
 
 export type DynamicInputType<
@@ -139,13 +141,8 @@ function buildToolLoose<
         } as ToolCallResult<InputType, OutputType>;
       }
       // After status check, result is narrowed to ToolCallAccepted<InputType>, so result.value is InputType
-      const value = await params.execute(result.value);
-      // ToolCallResult branches: if OutputType is a Record, flatten it; otherwise wrap in value field
-      // TypeScript cannot infer the exact union type structure, so cast is needed
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        return { ok: true, ...value } as ToolCallResult<InputType, OutputType>;
-      }
-      return { ok: true, value } as ToolCallResult<InputType, OutputType>;
+      // params.execute now returns ToolCallResult directly, so we can return it as-is
+      return await params.execute(result.value);
     },
   };
   // NOTE: Avoids pathological generic instantiation inside ai.Tool by erasing input at the call site
@@ -168,7 +165,7 @@ function buildToolLoose<
  * @param params.inputSchema - The schema for the input of the tool.
  * @param params.outputSchema - The schema for the output of the tool.
  * @param params.description - The description of the tool.
- * @param params.execute - The function to execute the tool, that will be called with the validated input. Must accept a value corresponding to inputSchema, and output a value corresponding to outputSchema.
+ * @param params.execute - The function to execute the tool, that will be called with the validated input. Must accept a value corresponding to inputSchema, and return a ToolCallResult.
  * @returns A builder object for the tool.
  */
 export function toolBuilder<

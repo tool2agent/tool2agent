@@ -3,6 +3,7 @@ import { toolBuilder } from '../src/builder.js';
 import { AirlineSchedule, FlightEntry, FlightFilters } from './airline-schedule.js';
 import { uniq } from './utils.js';
 import { Tool2Agent } from '../src/tool2agent.js';
+import { type ToolCallResult } from '@tool2agent/types';
 
 // This code is runnable with `pnpm run example:airline-booking-chat` from the `packages/ai` directory.
 // The entry point is packages/ai/examples/airline-booking-chat.ts
@@ -47,12 +48,14 @@ export const mkAirlineBookingTool = (
     description: 'Airline booking tool.',
     // we are not doing anything here, just returning the input,
     // that's why both input and output schemas are the same: `AirlineBookingSchema`
-    execute: async (input: AirlineBooking) => {
+    execute: async (
+      input: AirlineBooking,
+    ): Promise<ToolCallResult<AirlineBooking, AirlineBooking>> => {
       // call the callback to simulate the tool execution
       await execute(input);
       // stop the inference
       responseReceivedController.abort();
-      return input;
+      return { ok: true, ...input };
     },
   })
     // Begin describing our tool interface:

@@ -2,7 +2,7 @@ import z from 'zod';
 import { generateText } from 'ai';
 import { toolBuilder } from '../src/builder.js';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { type ParameterValidationResult } from '@tool2agent/types';
+import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
 
 import 'dotenv/config';
 
@@ -23,7 +23,11 @@ const tool1 = toolBuilder({
   outputSchema: airlineBookingSchema,
   dynamicFields: dynamic,
   description: 'Validate and compute options for airline booking parameters.',
-  execute: async (input: AirlineBooking) => input,
+  execute: async (
+    input: AirlineBooking,
+  ): Promise<ToolCallResult<AirlineBooking, AirlineBooking>> => {
+    return { ok: true, ...input };
+  },
 })
   .field('departure', {
     requires: [],

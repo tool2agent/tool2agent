@@ -1,6 +1,6 @@
 import z from 'zod';
 import { toolBuilder } from '../src/builder.js';
-import { type ParameterValidationResult } from '@tool2agent/types';
+import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
 
 // This type is used as fully validated input for the tool's execute function
 export const airlineBookingSchema = z.object({
@@ -19,7 +19,11 @@ const builder = toolBuilder({
   outputSchema: airlineBookingSchema,
   dynamicFields: dynamic,
   description: 'Validate and compute options for airline booking parameters.',
-  execute: async (input: AirlineBooking) => input,
+  execute: async (
+    input: AirlineBooking,
+  ): Promise<ToolCallResult<AirlineBooking, AirlineBooking>> => {
+    return { ok: true, ...input };
+  },
 });
 
 builder.field('departure', {
