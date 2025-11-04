@@ -59,13 +59,13 @@ export type Tool2Agent<InputType, OutputType> = Tool<
 `tool2agent()` function allows defining AI SDK LLM tools using an `execute()` method that handles both validation and execution, returning structured feedback via [`ToolCallResult`](../types/src/tool2agent.ts).
 
 <details>
-<summary><strong>How to use tool2agent</strong></summary>
+<summary><strong>How to use <code>tool2agent()</code></strong></summary>
 
 - `execute()` accepts a tool payload and returns a [`ToolCallResult`](../types/src/tool2agent.ts) that can either succeed (`ok: true`) with the output value, or fail (`ok: false`) with structured feedback info.
 
 ```typescript
 // Parameters of tool2agent() function:
-export type Tool2AgentParams<
+type Tool2AgentParams<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodType<any> = z.ZodNever,
 > = {
@@ -77,12 +77,11 @@ export type Tool2AgentParams<
   ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
 };
 
-export function tool2agent<
+function tool2agent<
   InputSchema extends z.ZodObject<any>,
   OutputSchema extends z.ZodType<any> = z.ZodNever,
 >(
   // accepts anything tool() from AI SDK accepts
-
   params: Tool2AgentParams<InputSchema, OutputSchema>, // this type is simplified for clarity
 ): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>;
 ```
