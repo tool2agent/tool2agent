@@ -1,4 +1,5 @@
-import { validateToolSpec, type ToolSpec } from '../src/index.js';
+import { validateToolSpec } from '../src/builder/validation.js';
+import { type ToolSpec } from '../src/builder/types.js';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
 

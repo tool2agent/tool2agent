@@ -1,7 +1,7 @@
 import z from 'zod';
 import { tool, ToolCallOptions } from 'ai';
 import { type ToolCallResult } from '@tool2agent/types';
-import { Tool2Agent } from './tool2agent.js';
+import { Tool2Agent } from '../tool2agent.js';
 import {
   type ToolBuilderParams,
   type DynamicInputType,

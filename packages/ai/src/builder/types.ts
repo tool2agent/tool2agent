@@ -4,7 +4,7 @@ import {
   type ToolCallResult,
   type NonEmptyArray,
 } from '@tool2agent/types';
-import { type Tool2Agent } from './tool2agent.js';
+import { type Tool2Agent } from '../tool2agent.js';
 
 /** Parameters for creating a tool builder.
  * @template InputSchema - The Zod schema for the tool's input (must be a schema of a record).

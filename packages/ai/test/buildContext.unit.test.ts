@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { buildContext, type ToolFieldConfig } from '../src/index.js';
+import { type ToolFieldConfig } from '../src/index.js';
+import { buildContext } from '../src/builder/validation.js';
 
 describe('buildContext', () => {
   type TestInput = {

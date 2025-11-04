@@ -13,14 +13,6 @@ export function setLoggingEnabled(value: boolean = true): void {
 }
 
 /**
- * Check if logging is currently enabled.
- * @returns true if logging is enabled, false otherwise
- */
-export function isLoggingEnabled(): boolean {
-  return enabled;
-}
-
-/**
  * Log a message if logging is enabled.
  * @param args - Arguments to pass to console.log
  */

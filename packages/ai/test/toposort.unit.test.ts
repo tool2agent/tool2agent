@@ -1,7 +1,8 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { validateToolSpec, type ToolSpec } from '../src/index.js';
-import { toposortFields } from '../src/graph.js';
+import { type ToolSpec } from '../src/index.js';
+import { validateToolSpec } from '../src/builder/validation.js';
+import { toposortFields } from '../src/builder/graph.js';
 
 describe('validation.toposortFields', () => {
   it('orders by requires dependencies, roots first', () => {

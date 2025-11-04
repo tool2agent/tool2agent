@@ -1,7 +1,7 @@
 import { type ParameterValidationResult, type NonEmptyArray } from '@tool2agent/types';
 import { detectRequiresCycles, toposortFields } from './graph.js';
 import { isDeepStrictEqual } from 'util';
-import { log, delayedLog } from './internal-logger.js';
+import { log, delayedLog } from '../internal/logger.js';
 import type {
   ToolFieldConfig,
   ToolSpec,

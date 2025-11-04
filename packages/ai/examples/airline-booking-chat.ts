@@ -7,7 +7,7 @@ import { tool2agent, createMiddleware, type Tool2Agent } from '../src/index.js';
 import type { ToolCallResult } from '@tool2agent/types';
 import type { ToolCallOptions } from '@ai-sdk/provider-utils';
 import { mkAirlineBookingTool, type AirlineBooking } from '../test/airline.js';
-import { setLoggingEnabled } from '../src/internal-logger.js';
+import { setLoggingEnabled } from '../src/internal/logger.js';
 
 // Flight data
 const flights = [

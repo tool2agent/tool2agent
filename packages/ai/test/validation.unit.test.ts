@@ -1,13 +1,13 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 import {
-  validateToolInput,
   type ToolSpec,
   type ToolCallRejected,
   type ToolFieldConfig,
   HiddenSpecSymbol,
 } from '../src/index.js';
-import { toposortFields } from '../src/graph.js';
+import { validateToolInput } from '../src/builder/validation.js';
+import { toposortFields } from '../src/builder/graph.js';
 import { mkAirlineBookingTool } from './airline.js';
 
 type Airline = {
@@ -37,7 +37,6 @@ const spec = (
     [HiddenSpecSymbol]: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;
   }
 )[HiddenSpecSymbol];
-const dynamicFields: (keyof Airline)[] = ['departure', 'arrival', 'date', 'passengers'];
 
 describe('validation.unit.test.ts', () => {
   it('#1 validate rejects when fields are missing and provides allowedValues', async () => {
@@ -278,10 +277,7 @@ describe('validation.unit.test.ts', () => {
       'staticField'
     > = {
       requires: [],
-      validate: async (
-        value: string | undefined,
-        context: { staticField: string },
-      ) => {
+      validate: async (value: string | undefined, context: { staticField: string }) => {
         // Verify static field is available in context at runtime
         expect(context.staticField).to.equal('static-value');
         if (value === 'dynamic-value') {
