@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "pnpm -r clean",
-    "docs": "typedoc"
+    "docs": "pnpm run build && typedoc"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
