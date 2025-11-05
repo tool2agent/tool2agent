@@ -78,7 +78,8 @@ export function buildContext<
   for (const key in validFields) {
     const fieldKeyTyped = key as keyof InputType;
     if (fieldKeyTyped === fieldKey) continue; // Skip the current field
-    if (rule.requires.includes(fieldKeyTyped as any)) continue; // Skip required fields (already added)
+    if (rule.requires.includes(fieldKeyTyped as unknown as (typeof rule.requires)[number]))
+      continue; // Skip required fields (already added)
     if (!dynamicSet.has(fieldKeyTyped)) continue; // Skip static fields (already added)
     const v = validFields[fieldKeyTyped];
     if (typeof v !== 'undefined') {
@@ -106,7 +107,7 @@ function initializeStaticFields<
   const staticFields = {} as Pick<InputType, Exclude<keyof InputType, DynamicFields>>;
   for (const k of Object.keys(dynamicInput) as DynamicFields[]) {
     const key = k;
-    if (!dynamicSet.has(key as DynamicFields)) {
+    if (!dynamicSet.has(key)) {
       // Static fields are required in DynamicInputType, so safe to access
       const v = dynamicInput[k];
       if (typeof v !== 'undefined') {
@@ -144,7 +145,7 @@ function processValidationResult<
     validationResult.normalizedValue,
   )
     ? (() => {
-        const { normalizedValue, ...rest } = validationResult;
+        const { normalizedValue: _normalizedValue, ...rest } = validationResult;
         return rest as ParameterValidationResult<InputType, K>;
       })()
     : { ...validationResult };
@@ -195,7 +196,10 @@ export async function validateToolInput<
     type Key = typeof dynamicField;
     type Value = InputType[Key];
 
-    const fieldSpec: ToolFieldConfig<InputType, Key> = spec[dynamicField]!;
+    const fieldSpec: ToolFieldConfig<InputType, Key> = spec[dynamicField];
+    if (!fieldSpec) {
+      throw new Error(`Field spec not found for ${String(dynamicField)}`);
+    }
     // Dynamic fields are optional in DynamicInputType
     const value: Value | undefined = (loose as Partial<InputType>)[dynamicField];
 
@@ -223,10 +227,7 @@ export async function validateToolInput<
         JSON.stringify(processed.validationResult, null, 2),
     ]);
 
-    validationResults[dynamicField] = processed.validationResult as ParameterValidationResult<
-      InputType,
-      Key
-    >;
+    validationResults[dynamicField] = processed.validationResult;
   }
 
   const allValidOrSkipped = sortedFields.every(k => validationResults[k]?.valid !== false);

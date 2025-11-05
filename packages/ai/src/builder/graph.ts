@@ -51,8 +51,10 @@ export function toposortFields<S extends Record<string, { requires: readonly str
   // Build adjacency: r -> k for each k.requires includes r
   for (const k of keys) {
     for (const r of spec[k].requires as unknown as (keyof S)[]) {
-      const arr = dependents.get(r)!;
-      arr.push(k);
+      const arr = dependents.get(r);
+      if (arr) {
+        arr.push(k);
+      }
     }
   }
 
@@ -67,15 +69,19 @@ export function toposortFields<S extends Record<string, { requires: readonly str
   const order: (keyof S)[] = [];
 
   while (ready.length > 0) {
-    const current = ready.shift()!;
+    const current = ready.shift();
+    if (!current) break;
     order.push(current);
-    for (const dep of dependents.get(current)!) {
-      const nextDeg = (inDegree.get(dep) ?? 0) - 1;
-      inDegree.set(dep, nextDeg);
-      if (nextDeg === 0) {
-        // insert keeping order by tie-breaker
-        ready.push(dep);
-        ready.sort(sortReady);
+    const deps = dependents.get(current);
+    if (deps) {
+      for (const dep of deps) {
+        const nextDeg = (inDegree.get(dep) ?? 0) - 1;
+        inDegree.set(dep, nextDeg);
+        if (nextDeg === 0) {
+          // insert keeping order by tie-breaker
+          ready.push(dep);
+          ready.sort(sortReady);
+        }
       }
     }
   }

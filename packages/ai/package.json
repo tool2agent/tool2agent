@@ -27,6 +27,8 @@
     "build:all": "tsc -p tsconfig-all.json",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist dist-cjs",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "pnpm test:unit && pnpm test:types && pnpm test:runtime",
     "test:runtime": "mocha --config .mocharc.runtime.json",
     "test:unit": "mocha --config .mocharc.unit.json",

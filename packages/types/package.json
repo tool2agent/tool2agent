@@ -26,6 +26,8 @@
     "build": "tsc && tsc -p tsconfig.cjs.json",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist dist-cjs",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "pnpm run test:types",
     "test:types": "tsc --project test-d/tsconfig.json",
     "prepack": "pnpm run build"

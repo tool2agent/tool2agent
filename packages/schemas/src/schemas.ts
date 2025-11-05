@@ -100,14 +100,7 @@ export function mkParameterValidationFailureReasonsSchema<
  */
 function mkParameterValidationFailureReasonsSchemaTagged(
   paramKeyEnum: z.ZodEnum<Record<string, string>> | null,
-): TaggedUnionSchema<
-  z.ZodUnion<
-    [
-      z.ZodObject<Record<string, ZodType<unknown>>>,
-      ...z.ZodObject<Record<string, ZodType<unknown>>>[],
-    ]
-  >
-> {
+): TaggedUnionSchema<z.ZodUnion<[z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]>> {
   const branches: Record<string, ZodType<unknown>> = {
     problems: problemsRefusalSchema,
   };
@@ -177,28 +170,8 @@ export function mkParameterValidationResultSchema<
 
   // Union of valid: true and valid: false branches
   // intersectSchemas may return an object or a union; normalize to union branches
-  const validTrueBranches = getUnionBranches(
-    validTrueTagged as TaggedSchema<
-      | z.ZodObject<Record<string, ZodType<unknown>>>
-      | z.ZodUnion<
-          [
-            z.ZodObject<Record<string, ZodType<unknown>>>,
-            ...z.ZodObject<Record<string, ZodType<unknown>>>[],
-          ]
-        >
-    >,
-  );
-  const validFalseBranches = getUnionBranches(
-    validFalseTagged as TaggedSchema<
-      | z.ZodObject<Record<string, ZodType<unknown>>>
-      | z.ZodUnion<
-          [
-            z.ZodObject<Record<string, ZodType<unknown>>>,
-            ...z.ZodObject<Record<string, ZodType<unknown>>>[],
-          ]
-        >
-    >,
-  );
+  const validTrueBranches = getUnionBranches(validTrueTagged);
+  const validFalseBranches = getUnionBranches(validFalseTagged);
   return z.union([...validTrueBranches, ...validFalseBranches] as [
     z.ZodObject<Record<string, ZodType<unknown>>>,
     z.ZodObject<Record<string, ZodType<unknown>>>,
@@ -260,11 +233,11 @@ export function mkValidationResultsSchema<InputType extends Record<string, unkno
     [K in keyof InputType & string]: z.ZodType<ParameterValidationResult<InputType, K>>;
   }> = {};
   for (const key of keys) {
-    const valueSchema = shape[key as string] as ZodType<InputType[typeof key]>;
+    const valueSchema = shape[key] as ZodType<InputType[typeof key]>;
     perKey[key] = mkParameterValidationResultSchema<InputType, InputType[typeof key], typeof key>(
       valueSchema,
       paramKeyEnum,
-    ) as z.ZodType<ParameterValidationResult<InputType, typeof key>>;
+    );
   }
   return atLeastOne(
     perKey as {
@@ -437,10 +410,11 @@ export function mkTool2AgentSchema<S extends ZodType<unknown>, OutputType>(
 
     // Wrap the union in a tagged schema for intersection
     // mkValueFailureFeedbackSchema always returns a union from intersectSchemas
-    const valueFfTagged: TaggedSchema<any> = tagUnion(
-      valueFailureFeedbackSchema as z.ZodUnion<any>,
-      (valueFailureFeedbackSchema as z.ZodUnion<any>).options,
-    );
+    const valueFfUnion = valueFailureFeedbackSchema as z.ZodUnion<
+      [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]
+    >;
+    const valueFfTagged: TaggedSchema<z.ZodUnion<[z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]>> =
+      tagUnion(valueFfUnion, valueFfUnion.options);
 
     const rejectedTagged = intersectSchemas(okSchema, valueFfTagged);
     rejected = untag(rejectedTagged) as z.ZodType<

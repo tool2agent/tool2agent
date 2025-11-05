@@ -10,13 +10,20 @@
     "test": "pnpm -r test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
     "clean": "pnpm -r clean",
     "docs": "pnpm run build && typedoc"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
+    "eslint": "^9.39.1",
     "prettier": "^3.6.2",
     "typedoc": "^0.28.14",
-    "typedoc-plugin-markdown": "^4.9.0"
+    "typedoc-plugin-markdown": "^4.9.0",
+    "typescript-eslint": "^8.46.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

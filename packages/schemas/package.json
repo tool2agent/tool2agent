@@ -27,6 +27,8 @@
     "build:all": "tsc -p tsconfig-all.json",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist dist-cjs",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "pnpm run test:types && pnpm run test:unit",
     "test:types": "tsc --project test-d/tsconfig.json",
     "test:unit": "tsc --project test/tsconfig.json && tsx test/*.test.ts",

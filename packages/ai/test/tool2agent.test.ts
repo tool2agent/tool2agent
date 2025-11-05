@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { tool2agent, type Tool2Agent } from '../src/tool2agent.js';
+import { type Tool2Agent, tool2agent } from '../src/tool2agent.js';
 import { z } from 'zod';
 
 const inputSchema = z.object({ value: z.string() });
@@ -60,8 +60,8 @@ describe('tool2agent error handling', () => {
       const error = new Error('Test error');
       error.stack = undefined;
       // Remove name and message to force toString() fallback
-      delete (error as any).name;
-      delete (error as any).message;
+      delete (error as unknown as { name?: string }).name;
+      delete (error as unknown as { message?: string }).message;
 
       const tool: Tool2Agent<InputType, OutputType> = tool2agent({
         inputSchema,
@@ -228,7 +228,7 @@ describe('tool2agent error handling', () => {
       });
 
       try {
-        await tool.execute({ value: 'test' }, { toolCallId: 'test', messages: [] });
+        await tool.execute!({ value: 'test' }, { toolCallId: 'test', messages: [] });
         expect.fail('Expected exception to be thrown');
       } catch (thrownError) {
         expect(thrownError).to.equal(error);

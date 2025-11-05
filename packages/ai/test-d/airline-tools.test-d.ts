@@ -1,5 +1,5 @@
 import z from 'zod';
-import { generateText } from 'ai';
+import { generateText, tool } from 'ai';
 import { toolBuilder } from '../src/index.js';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { type ParameterValidationResult, type ToolCallResult } from '@tool2agent/types';
@@ -13,8 +13,12 @@ export const airlineBookingSchema = z.object({
   date: z.string().min(1),
   passengers: z.number().min(1),
 });
-export type AirlineBookingSchema = typeof airlineBookingSchema;
-export type AirlineBooking = z.infer<AirlineBookingSchema>;
+type AirlineBookingSchema = typeof airlineBookingSchema;
+type AirlineBooking = z.infer<AirlineBookingSchema>;
+
+const bookingInputSchema = airlineBookingSchema.partial();
+type BookingInputSchema = typeof bookingInputSchema;
+type BookingInput = z.infer<BookingInputSchema>;
 
 const dynamic = ['passengers', 'date', 'arrival', 'departure'] as const;
 
@@ -37,7 +41,7 @@ const tool1 = toolBuilder({
       value: string | undefined,
       context: { arrival?: string; date?: string; passengers?: number },
     ) => {
-      return {} as any as ParameterValidationResult<AirlineBooking, 'departure'>;
+      return {} as unknown as ParameterValidationResult<AirlineBooking, 'departure'>;
     },
   })
   .field('arrival', {
@@ -48,7 +52,7 @@ const tool1 = toolBuilder({
       value: null | undefined,
       context: { departure: string; date?: string; passengers?: number },
     ) => {
-      return {} as any as ParameterValidationResult<AirlineBooking, 'arrival'>;
+      return {} as unknown as ParameterValidationResult<AirlineBooking, 'arrival'>;
     },
   })
   .field('date', {
@@ -59,25 +63,27 @@ const tool1 = toolBuilder({
       value: string | undefined,
       context: { departure: string; arrival: string; passengers?: number },
     ) => {
-      return {} as any as ParameterValidationResult<AirlineBooking, 'date'>;
+      return {} as unknown as ParameterValidationResult<AirlineBooking, 'date'>;
     },
   });
 
 // @ts-expect-error build is not available, missing `passengers` field
 const buildCheckedTool1 = tool1.build();
 
-const bookFlight = tool1
-  .field('passengers', {
-    requires: ['departure', 'arrival', 'date'],
-    description: 'Number of passengers',
-    validate: async (
-      value: number | undefined,
-      context: { departure: string; arrival: string; date: string },
-    ) => {
-      return {} as any as ParameterValidationResult<AirlineBooking, 'passengers'>;
-    },
-  })
-  .build();
+const bookFlight = tool<BookingInput, ToolCallResult<BookingInput, AirlineBooking>>(
+  tool1
+    .field('passengers', {
+      requires: ['departure', 'arrival', 'date'],
+      description: 'Number of passengers',
+      validate: async (
+        value: number | undefined,
+        context: { departure: string; arrival: string; date: string },
+      ) => {
+        return {} as unknown as ParameterValidationResult<AirlineBooking, 'passengers'>;
+      },
+    })
+    .build(),
+);
 
 // text completion with tools using ai sdk:
 // this will fail obviously, because we muted critical errors

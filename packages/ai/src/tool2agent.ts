@@ -1,7 +1,8 @@
-import { type ProviderOptions, ToolCallOptions, Tool } from '@ai-sdk/provider-utils';
+import { type ProviderOptions, ToolCallOptions, Tool, tool } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 import type { ToolCallResult, ToolCallFailure } from '@tool2agent/types';
 import type { NonEmptyArray } from '@tool2agent/types';
+import { createToolCallResultSchema } from './tool-call-result-schema.js';
 
 /**
  * Tool2Agent is a concrete type that represents a tool that can be used by an LLM.
@@ -29,8 +30,9 @@ export type Tool2Agent<InputType, OutputType> = {
   inputSchema: z.ZodType<InputType>;
   /**
    * The schema of the output that the tool produces.
+   * This describes the ToolCallResult union type (success or failure).
    */
-  outputSchema: z.ZodType<OutputType>;
+  outputSchema: z.ZodType<ToolCallResult<InputType, OutputType>>;
   /**
    * Mandatory function that is called with the arguments from the tool call and produces a result.
    * Always returns a Promise (not AsyncIterable).
@@ -68,6 +70,9 @@ export type Tool2Agent<InputType, OutputType> = {
    * Optional conversion function that maps the tool result to an output that can be used by the language model.
    * If not provided, the tool result will be sent as a JSON object.
    */
+  // We need any here for its unification behavior.
+  // Replacing it with unknown would break the interface.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   toModelOutput?: (output: ToolCallResult<InputType, OutputType>) => any;
 };
 
@@ -77,8 +82,8 @@ export type Tool2Agent<InputType, OutputType> = {
  * @template OutputSchema - The Zod schema for the tool's output.
  */
 export type Tool2AgentParams<
-  InputSchema extends z.ZodType<any>,
-  OutputSchema extends z.ZodType<any>,
+  InputSchema extends z.ZodTypeAny,
+  OutputSchema extends z.ZodTypeAny,
 > = {
   inputSchema: InputSchema;
   outputSchema: OutputSchema;
@@ -109,13 +114,19 @@ export type Tool2AgentParams<
  *   },
  * });
  */
-export function tool2agent<InputSchema extends z.ZodType<any>, OutputSchema extends z.ZodType<any>>(
+export function tool2agent<InputSchema extends z.ZodTypeAny, OutputSchema extends z.ZodTypeAny>(
   params: Tool2AgentParams<InputSchema, OutputSchema>,
 ): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>> {
-  const { execute, inputSchema, outputSchema, ...rest } = params;
+  const {
+    execute,
+    inputSchema: inputSchemaParam,
+    outputSchema: outputSchemaParam,
+    ...rest
+  } = params;
   type InputType = z.infer<InputSchema>;
   type OutputType = z.infer<OutputSchema>;
-
+  const inputSchema = inputSchemaParam as z.ZodType<InputType>;
+  const outputSchema = outputSchemaParam as z.ZodType<OutputType>;
   const executeFunction = async (
     input: InputType,
     options: ToolCallOptions,
@@ -124,23 +135,29 @@ export function tool2agent<InputSchema extends z.ZodType<any>, OutputSchema exte
 
     if (typeof params.catchExceptions === 'undefined' || params.catchExceptions) {
       try {
-        return (await execute(input, options)) as ToolCallResult<InputType, OutputType>;
+        return await execute(input, options);
       } catch (error: unknown) {
         return errorToToolCallFailure<InputType>(error);
       }
     } else {
-      return (await execute(input, options)) as ToolCallResult<InputType, OutputType>;
+      return await execute(input, options);
     }
   };
+
+  // Convert outputSchema to ToolCallResult schema
+  const toolCallResultSchema = createToolCallResultSchema<InputType, OutputType>(
+    inputSchema,
+    outputSchema,
+  );
 
   const theTool: Tool2Agent<InputType, OutputType> = {
     ...rest,
     inputSchema,
-    outputSchema,
+    outputSchema: toolCallResultSchema,
     execute: executeFunction,
   };
   // This is only for type checking, to ensure assignability
-  const _aiTool: Tool<InputType, ToolCallResult<InputType, OutputType>> = theTool;
+  const _aiTool: Tool<InputType, ToolCallResult<InputType, OutputType>> = tool(theTool);
   return theTool;
 }
 

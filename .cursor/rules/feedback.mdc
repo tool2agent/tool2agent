@@ -3,6 +3,8 @@ alwaysApply: true
 ---
 To get feedback, use whichever test suite is appropriate:
 
+- `pnpm run lint` - eslint
+- `pnpm run lint:fix` - fix some lint problems
 - `pnpm run build` - build sources only.
 - `pnpm run build:all` - typecheck examples and tests - use when modifying the public interface-facing parts. this command does not build, only typechecks
 - `pnpm run test:runtime` - slow tests, avoid

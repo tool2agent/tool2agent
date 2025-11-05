@@ -12,7 +12,7 @@ import { type Tool2Agent } from '../tool2agent.js';
  * @template DynamicFields - The keys of InputSchema that are dynamic (allows the LLM to provide them incrementally).
  */
 export type ToolBuilderParams<
-  InputSchema extends z.ZodObject<any>,
+  InputSchema extends z.ZodObject<z.ZodRawShape>,
   OutputSchema extends z.ZodTypeAny,
   DynamicFields extends keyof z.infer<InputSchema>,
 > = {
@@ -77,7 +77,7 @@ export type DynamicInputType<
  * ```
  */
 export type DynamicInput<
-  InputSchema extends z.ZodObject<any>,
+  InputSchema extends z.ZodObject<z.ZodRawShape>,
   DynamicFields extends keyof z.infer<InputSchema>,
 > = {
   [FieldName in DynamicFields]?: z.infer<InputSchema>[FieldName];
@@ -191,7 +191,9 @@ export type BuilderApi<
   ) => BuilderApi<InputType, OutputType, Added | FieldName, DynamicUnion>;
   // build: returns an SDK Tool with erased generics to avoid deep type instantiation at call sites
   build: (
-    ...args: Exclude<DynamicUnion, Added> extends never ? [] : [arg: never]
+    ...args: Exclude<DynamicUnion, Added> extends never
+      ? []
+      : [build_not_allowed_because_not_all_dynamic_fields_were_specified: never]
   ) => Exclude<DynamicUnion, Added> extends never
     ? Tool2Agent<DynamicInputType<InputType, DynamicUnion>, OutputType>
     : never;

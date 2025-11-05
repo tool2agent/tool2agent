@@ -23,7 +23,7 @@ type ToolDefinition<InputSchema extends z.ZodTypeAny, InputType, OutputType> = {
 
 // Erased builder (loose) — returns SDK Tool with erased generics to avoid deep type instantiation
 function buildToolLoose<
-  InputSchema extends z.ZodObject<any>,
+  InputSchema extends z.ZodObject<z.ZodRawShape>,
   OutputSchema extends z.ZodTypeAny,
   DynamicUnion extends keyof z.infer<InputSchema>,
 >(
@@ -47,7 +47,7 @@ function buildToolLoose<
     modifiedShape[key] = dynamicSet.has(key) ? base.optional() : base;
   }
   // Object.fromEntries doesn't preserve exact type structure, so cast is needed
-  const dynamicInputSchema = z.object({}).extend(modifiedShape) as any as DynamicInputSchema;
+  const dynamicInputSchema = z.object({}).extend(modifiedShape) as unknown as DynamicInputSchema;
 
   const t: ToolDefinition<
     DynamicInputSchema,
@@ -56,7 +56,7 @@ function buildToolLoose<
   > = {
     inputSchema: dynamicInputSchema,
     description: params.description,
-    execute: async (input: DynamicInputType, options: ToolCallOptions) => {
+    execute: async (input: DynamicInputType, _options: ToolCallOptions) => {
       const result = await validateToolInput<InputType, DynamicUnion>(fullSpec, input);
       if (result.status === 'rejected') {
         return {
@@ -71,7 +71,7 @@ function buildToolLoose<
   };
   // NOTE: Avoids pathological generic instantiation inside ai.Tool by erasing input at the call site
   // Cast to unknown first, then to Tool2Agent to avoid deep type instantiation at call sites
-  const ret = tool(t as unknown as any) as unknown as Tool2Agent<
+  const ret = tool(t as unknown as Parameters<typeof tool>[0]) as unknown as Tool2Agent<
     DynamicInput<InputSchema, DynamicUnion>,
     OutputType
   > & {
@@ -116,7 +116,7 @@ function buildToolLoose<
  * ```
  */
 export function toolBuilder<
-  InputSchema extends z.ZodObject<any>,
+  InputSchema extends z.ZodObject<z.ZodRawShape>,
   OutputSchema extends z.ZodTypeAny,
   DynamicFields extends keyof z.infer<InputSchema> & string,
 >(
@@ -182,7 +182,7 @@ export function toolBuilder<
 }
 
 function makeApi<
-  InputSchema extends z.ZodObject<any>,
+  InputSchema extends z.ZodObject<z.ZodRawShape>,
   OutputSchema extends z.ZodTypeAny,
   InputType extends z.infer<InputSchema>,
   OutputType extends z.infer<OutputSchema>,
@@ -223,7 +223,7 @@ function makeApi<
         DynamicUnion
       >(params, nextState);
     },
-    build: ((..._args: any[]) => {
+    build: ((..._args: unknown[]) => {
       // Build spec from provided fields
       const provided = state.spec;
       return buildToolLoose<InputSchema, OutputSchema, DynamicUnion & keyof z.infer<InputSchema>>(
