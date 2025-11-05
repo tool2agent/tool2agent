@@ -12,7 +12,7 @@ import { tool2agent, toolBuilder } from '@tool2agent/ai';
 
 ## Motivation
 
-[tool2agent](https://github.com/tool2agent/tool2agent) is a protocol that enables LLM agents to navigate complex business constraints via trial and error by communicating rich and structured feedback data from tools.
+[tool2agent](https://github.com/tool2agent/tool2agent) is a protocol that enables LLM agents to navigate complex business constraints through trial and error by communicating rich and structured feedback data from tools.
 
 [Read more about tool2agent](https://github.com/tool2agent/tool2agent?tab=readme-ov-file#about)
 
@@ -25,15 +25,15 @@ This package implements tool2agent bindings for AI SDK in two forms:
 
 ### Tool builder
 
-`toolBuilder()` is the main value proposition of tool2agent so far. It allows to semi-declaratively define tool feedback flows.
+`toolBuilder()` is the main value proposition of tool2agent so far. It allows you to semi-declaratively define tool feedback flows.
 
 `toolBuilder()` accepts a tool input schema with some of its fields marked as _dynamic parameters_.
 
 At runtime, dynamic parameters are made optional, and the LLM can fill them as it "sees" fit.
 
-Every dynamic parameter has a validation function attached, that is called regardless of whether the parameter has been passed. This allows the tool to provide feedback at any time. For example, feedback can include a list of value suggestions, that may depend on _other_ parameter values.
+Every dynamic parameter has a validation function attached that is called regardless of whether the parameter has been passed. This allows the tool to provide feedback at any time. For example, feedback can include a list of value suggestions that may depend on _other_ parameter values.
 
-These parameter inter-dependencies is what makes `toolBuilder()` a neat instrument for building conversational LLM workflows, because they allow to specify the _ordering_ of parameters to be filled, which guides the assistant towards _asking the user the right questions_.
+These parameter inter-dependencies are what make `toolBuilder()` a neat instrument for building conversational LLM workflows, because they allow you to specify the _ordering_ of parameters to be filled, which guides the assistant towards _asking the user the right questions_.
 
 [Check out a complete usage example](./test/airline.ts)
 
@@ -60,7 +60,7 @@ type Tool2Agent<InputType, OutputType> = Tool<
 - See [`ToolCallResult` definition](../types/src/tool2agent.ts)
 </details>
 
-`tool2agent()` function allows defining AI SDK LLM tools using an `execute()` method that handles both validation and execution, returning structured feedback via [`ToolCallResult`](../types/src/tool2agent.ts).
+The `tool2agent()` function allows you to define AI SDK LLM tools using an `execute()` method that handles both validation and execution, returning structured feedback via [`ToolCallResult`](../types/src/tool2agent.ts).
 
 <details>
 <summary><strong>How to use <code>tool2agent()</code></strong></summary>
@@ -89,16 +89,16 @@ function tool2agent<
 <details>
 <summary><strong>Differences between <code>tool()</code> and <code>tool2agent()</code></strong></summary>
 
-- AI SDK `tool()` does not do anything, and exists only for type checking, while `tool2agent()` builds tool's `execute()` method
+- AI SDK `tool()` does nothing and exists only for type checking, while `tool2agent()` builds the tool's `execute()` method
 - `tool()` passes exceptions through, while `tool2agent()` catches exceptions and returns them formatted nicely to the LLM as tool2agent `problems`
 - `tool2agent()` mandates input and output schemas. Use `never` / `z.never()` for output schema if it is not needed.
-- `tool2agent()` expects a json-serializable output type, and for this reason it does not support providing custom `toModelOutput`
+- `tool2agent()` expects a json-serializable output type, and for this reason, it does not support providing custom `toModelOutput`
 
 </details>
 
 ### Middleware
 
-`createMiddleware()` allows composing transformations around tools, enabling reusable logic for validation, logging, or input/output transformation. Middleware can be piped together using the `.pipe()` method.
+`createMiddleware()` allows you to compose transformations around tools, enabling reusable logic for validation, logging, or input/output transformation. Middleware can be piped together using the `.pipe()` method.
 
 <details>
 <summary><strong>Show type definition</strong></summary>
