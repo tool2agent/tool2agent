@@ -304,12 +304,9 @@ export function mkToolCallSuccessSchema<OutputType>(
 }
 
 export function mkToolCallFailureSchema<InputType extends Record<string, unknown>>(
-  validationResultsSchema: z.ZodType<
-    | {
-        [K in keyof InputType & string]?: ParameterValidationResult<InputType, K>;
-      }
-    | ParameterValidationResult<{ value: InputType }, 'value'>
-  >,
+  validationResultsSchema: z.ZodType<{
+    [K in keyof InputType & string]?: ParameterValidationResult<InputType, K>;
+  }>,
 ): z.ZodType<ToolCallFailure<InputType>> {
   // Build common schema: ok: false & FeedbackAndInstructions
   const commonSchema = z
