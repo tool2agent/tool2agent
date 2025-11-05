@@ -62,7 +62,7 @@ export type ToolCallFailure<InputType> = {
 
 export type FailureFeedback<InputType> =
   /** If InputType is a record, we can provide feedback for its fields. */
-  InputType extends Record<string, unknown>
+  [InputType] extends [Record<string, unknown>]
     ? /** We require at least one actionable validation result to be present. */
       RecordFailureFeedback<InputType>
     : /** If InputType is not a record, we provide feedback for the entire input.

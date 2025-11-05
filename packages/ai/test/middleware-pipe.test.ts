@@ -16,8 +16,8 @@ const createBaseTool = () =>
   tool2agent({
     inputSchema,
     outputSchema,
-    execute: async (params: Partial<InputType>) => {
-      return { ok: true as const, result: params.value ?? 0 };
+    execute: async (params: InputType) => {
+      return { ok: true as const, result: params.value };
     },
   });
 

@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+To get feedback, use whichever test suite is appropriate:
+
+- `pnpm run build` - build sources only.
+- `pnpm run build:all` - typecheck examples and tests - use when modifying the public interface-facing parts. this command does not build, only typechecks
+- `pnpm run test:runtime` - slow tests, avoid
+- `pnpm run test:unit` - fast sanity check tests, prefer these
+- `pnpm run test:types` - API type safety checks with negative examples (via ts-expect error). run when changing API
+- `pnpm run test` - run all tests, including slow runtime tests

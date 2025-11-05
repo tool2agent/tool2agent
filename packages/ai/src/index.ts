@@ -1,7 +1,7 @@
 // Re-export all tool2agent types
 export type * from '@tool2agent/types';
 
-export { tool2agent, type Tool2AgentParams, type Tool2Agent } from './tool2agent.js';
+export { tool2agent, type Tool2Agent, type Tool2AgentParams } from './tool2agent.js';
 export { toolBuilder } from './builder/builder.js';
 export {
   type ToolBuilderParams,

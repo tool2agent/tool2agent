@@ -1,5 +1,5 @@
 import { type Expect, type Equal } from './expect.js';
-import { type Tool2Agent, type Tool2AgentParams, tool2agent } from '../src/index.js';
+import { type Tool2Agent, tool2agent } from '../src/index.js';
 import { z } from 'zod';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
@@ -16,42 +16,13 @@ type OutputType = z.infer<typeof outputSchema>;
 
 // ==================== Test: OutputType = never should not allow value field ====================
 
-// Invalid: When outputSchema is omitted (defaults to never), providing value field should fail
+// Invalid: When outputSchema is never, providing value field should fail
 const toolWithNeverOutput = tool2agent({
-  type: 'function',
   description: 'Tool with never output type',
   inputSchema: testInputSchema,
   outputSchema: z.never(),
   // @ts-expect-error - value field should be omitted
-  execute: async (params: Partial<TestInputType>) => {
-    return {
-      ok: true,
-      value: { something: 'invalid' },
-    };
-  },
-});
-
-const toolWithNeverOutput2 = tool2agent<typeof testInputSchema, typeof outputSchema>({
-  type: 'function',
-  description: 'Tool with never output type',
-  inputSchema: testInputSchema,
-  outputSchema: z.never(),
-  // @ts-expect-error - value field should be omitted
-  execute: async (params: Partial<TestInputType>) => {
-    return {
-      ok: true,
-      value: { something: 'invalid' },
-    };
-  },
-});
-
-const toolWithNeverOutput3 = tool2agent<typeof testInputSchema>({
-  type: 'function',
-  description: 'Tool with never output type',
-  inputSchema: testInputSchema,
-  outputSchema: z.never(),
-  // @ts-expect-error - value field should be omitted
-  execute: async (params: Partial<TestInputType>) => {
+  execute: async (params: TestInputType) => {
     return {
       ok: true,
       value: { something: 'invalid' },
@@ -63,11 +34,10 @@ const toolWithNeverOutput3 = tool2agent<typeof testInputSchema>({
 
 // Create a tool to test with
 const testTool = tool2agent({
-  type: 'function',
   description: 'Test tool',
   inputSchema: testInputSchema,
   outputSchema: z.never(),
-  execute: async (params: Partial<TestInputType>) => {
+  execute: async (params: TestInputType) => {
     return { ok: true as const };
   },
 });

@@ -42,10 +42,14 @@ These parameter inter-dependencies is what makes `toolBuilder()` a neat instrume
 This interface wires together tool2agent types and AI SDK by translating tool2agent tool parameters to AI SDK `tool()` parameters.
 
 <details>
-<summary><strong>Show type definition</strong></summary>
+<summary><strong>Show types</strong></summary>
 
 ```typescript
-export type Tool2Agent<InputType, OutputType> = Tool<
+import type { Tool } from 'ai';
+import type { ToolCallResult } from '@tool2agent/types';
+
+// This definition is simplified for illustrative purposes
+type Tool2Agent<InputType, OutputType> = Tool<
   InputType,
   // output is always a `ToolCallResult` that can be either accepted (with output value),
   // or rejected (with mandatory feedback)
@@ -65,25 +69,19 @@ export type Tool2Agent<InputType, OutputType> = Tool<
 
 ```typescript
 // Parameters of tool2agent() function:
-type Tool2AgentParams<
-  InputSchema extends z.ZodObject<any>,
-  OutputSchema extends z.ZodType<any> = z.ZodNever,
-> = {
+function tool2agent<
+  InputSchema extends z.ZodType<any>,
+  OutputSchema extends z.ZodType<any>,
+>(params: {
   inputSchema: InputSchema;
   outputSchema: OutputSchema;
   execute: (
-    params: z.infer<InputSchema>,
-    options?: ToolCallOptions,
+    input: z.infer<InputSchema>,
+    options: ToolCallOptions,
   ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
-};
-
-function tool2agent<
-  InputSchema extends z.ZodObject<any>,
-  OutputSchema extends z.ZodType<any> = z.ZodNever,
->(
-  // accepts anything tool() from AI SDK accepts
-  params: Tool2AgentParams<InputSchema, OutputSchema>, // this type is simplified for clarity
-): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>;
+  // other parameters omitted
+}): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>;
+// ^ `Tool2Agent` is compatible with AI SDK `Tool`
 ```
 
 </details>
