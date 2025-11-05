@@ -33,6 +33,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
+        if: matrix.zod == 4 && matrix.node-version == '22.x'
         run: pnpm run lint
 
       - name: Use zod@${{ matrix.zod }}
