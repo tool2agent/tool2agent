@@ -1,4 +1,4 @@
-import { type ProviderOptions, ToolCallOptions, tool, dynamicTool } from '@ai-sdk/provider-utils';
+import { type ProviderOptions, ToolCallOptions, Tool } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 import type { ToolCallResult, ToolCallFailure } from '@tool2agent/types';
 import type { NonEmptyArray } from '@tool2agent/types';
@@ -59,14 +59,16 @@ export type Tool2Agent<InputType, OutputType> = {
    */
   onInputAvailable?: (
     options: {
-      input: InputType;
+      // We do not allow input type to be never, but with this conditional
+      // we make AI SDK happy.
+      input: [InputType] extends [never] ? undefined : InputType;
     } & ToolCallOptions,
   ) => void | PromiseLike<void>;
   /**
    * Optional conversion function that maps the tool result to an output that can be used by the language model.
    * If not provided, the tool result will be sent as a JSON object.
    */
-  toModelOutput?: (output: OutputType) => any;
+  toModelOutput?: (output: ToolCallResult<InputType, OutputType>) => any;
 };
 
 /**
@@ -137,8 +139,9 @@ export function tool2agent<InputSchema extends z.ZodType<any>, OutputSchema exte
     outputSchema,
     execute: executeFunction,
   };
-  // tool() is an identity function but we call it anyway for the love of the game
-  return tool(theTool) as Tool2Agent<InputType, OutputType>;
+  // This is only for type checking, to ensure assignability
+  const _aiTool: Tool<InputType, ToolCallResult<InputType, OutputType>> = theTool;
+  return theTool;
 }
 
 function errorToToolCallFailure<InputType>(error: unknown): ToolCallFailure<InputType> {
