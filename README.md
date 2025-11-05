@@ -56,3 +56,16 @@ Precise tool schemas occupy a lot of input tokens.
 In the context of agentic workflows, most tools will not be called, so there is no reason for the LLM to be aware of their precise schemas.
 
 tool2agent-enabled workflows that use dynamic schemas may consume much fewer tokens (but require more tool calls for trial and feedback).
+
+## Call to action
+
+This project is an experiment, that is a result of multiple LLM workflow design ideas converging together in my head.
+
+I am sure that it will be at least somewhat useful for me - but it remains to be seen what else is possible with this approach.
+
+I invite you to try applying it to your problems. Let's invent new middleware and tool builder utilities. Here are some areas to look into:
+
+- Observability, Logging;
+- Rate limiting, Debouncing, Tool call polling;
+- Automatic error fixup. Using cheaper models to fix tool call problems on the fly
+- Deriving tool feedback from app state
