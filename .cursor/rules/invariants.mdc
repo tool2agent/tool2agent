@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+This monorepo contains multiple packages.
+They must provide the following guarantees:
+
+- packages/schemas must be aligned with packages/types. every type from packages/types must be parseable by the corresponding schema, and every schema must precisely encode the restrictions of the type. The schemas package is not for use at runtime, so it's OK if the schemas there are complex.
+
+- packages/types provides ToolCallResult type, that must be roughly aligned with packages/ai/src/tool-call-result-schema.ts. Any value of the type must acceptable according to the schema. This schema is simplified and is supposed to be a loose representation of ToolCallResult for the consumption of the LLM, hence we don't encode all the restrictions - only show what is available.
