@@ -322,6 +322,18 @@ const validAcceptedEmpty: ToolCallSuccess<never> = {
   ok: true,
 };
 
+const invalidEmpty: ToolCallSuccess<never> = {
+  ok: true,
+  // @ts-expect-error - value field is not allowed
+  value: 'foobar',
+};
+
+const invalidEmpty2: ToolCallSuccess<never> = {
+  ok: true,
+  // @ts-expect-error - any extra properties are not allowed
+  baz: 'foobar',
+};
+
 // ==================== SingleParameterFeedback Tests ====================
 
 // Valid: SingleParameterFeedback with required problems field

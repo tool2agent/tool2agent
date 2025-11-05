@@ -16,14 +16,10 @@ export type ToolCallSuccess<OutputType> = {
 } &
   // If OutputType is never, we don't allow value fields at all.
   ([OutputType] extends [never]
-    ? {
-        value?: never; // Explicitly disallow value property
-      }
+    ? {}
     : // If OutputType is Record<string, never> (empty object from z.object({})), treat it like never (we do not add any value fields)
       [OutputType] extends [Record<string, never>]
-      ? {
-          value?: never; // Explicitly disallow value property
-        }
+      ? {}
       : // If OutputType is a record, we use it directly
         OutputAsRecord<OutputType>) &
   FeedbackAndInstructions;
