@@ -1,4 +1,4 @@
-# @tool2agent/schemas
+# @tool2agent/schemas [![API docs](https://img.shields.io/badge/API%20docs-blue)](https://tool2agent.org/docs/)
 
 Zod schema generators for the tool2agent protocol.
 

@@ -1,4 +1,4 @@
-# @tool2agent/ai
+# @tool2agent/ai [![API docs](https://img.shields.io/badge/API%20docs-blue)](https://tool2agent.org/docs/)
 
 [tool2agent](https://github.com/tool2agent/tool2agent) interface for AI SDK.
 
