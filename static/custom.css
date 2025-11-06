@@ -1,6 +1,6 @@
 body {
   margin: 40px auto;
-  max-width: 650px;
+  max-width: 1300px;
   line-height: 1.6;
   font-size: 18px;
   color: #444;
@@ -16,4 +16,8 @@ h3 {
 img {
   max-width: 100%;
   height: auto;
+}
+
+figcaption {
+  display: none;
 }

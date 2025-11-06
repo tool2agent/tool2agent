@@ -40,16 +40,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pandoc
 
-      - name: Create docs directory
-        run: mkdir -p docs
+      - name: Create build directory
+        run: mkdir -p _site/docs
 
       - name: Copy CSS to docs directory
-        run: cp static/custom.css docs/custom.css
+        run: cp static/custom.css _site/docs/custom.css
 
       - name: Convert README.md to HTML
         run: |
-          cd docs && \
-          pandoc ../README.md -o index.html \
+          cd _site/docs && \
+          pandoc ../../README.md -o index.html \
             --standalone \
             -V title="" \
             --css=custom.css \
@@ -57,7 +57,7 @@ jobs:
             --metadata description="tool2agent is a protocol that enables LLM agents to navigate complex business constraints through trial and error by communicating rich and structured feedback data from tools."
 
       - name: Create CNAME file
-        run: echo "tool2agent.org" > docs/CNAME
+        run: echo "tool2agent.org" > _site/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -65,7 +65,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs
+          path: ./_site
 
       - name: Deploy to GitHub Pages
         id: deployment
