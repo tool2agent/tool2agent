@@ -4,7 +4,7 @@ tool2agent is a protocol that enables LLM agents to navigate complex business co
 
 Real-world domain constraints are complex, dynamic, and not publicly known — in other words, can't be fed into an LLM context. tool2agent defines rules for producing structured errors and suggestions that give an agent enough context to iteratively improve on its request until the goal is achieved.
 
-Technically speaking, tool2agent is a set of conventions that allow structuring tool call feedback flows in a predictable manner. These conventions enable [novel tooling](./packages/ai/) for agent builders.
+Technically speaking, tool2agent is a set of conventions that allow structuring tool call feedback flows in a predictable manner. These conventions enable [novel tooling](https://github.com/tool2agent/tool2agent/tree/master/packages/ai) for agent builders.
 
 ![LLM](https://raw.githubusercontent.com/tool2agent/tool2agent/master/img/slide-1.png)
 
@@ -12,12 +12,12 @@ Technically speaking, tool2agent is a set of conventions that allow structuring 
 
 ## For agent developers
 
-- [`@tool2agent/ai`](./packages/ai) — Bindings for AI SDK.
+- [`@tool2agent/ai`](https://github.com/tool2agent/tool2agent/tree/master/packages/ai) — Bindings for AI SDK.
 
 ## For tool2agent tooling developers
 
-- [`@tool2agent/types`](./packages/types) — TypeScript type definitions for the protocol that act as a specification.
-- [`@tool2agent/schemas`](./packages/schemas) — Zod schema generators that map user-defined domain type schemas to tool2agent schemas that use these domain types.
+- [`@tool2agent/types`](https://github.com/tool2agent/tool2agent/tree/master/packages/types) — TypeScript type definitions for the protocol that act as a specification.
+- [`@tool2agent/schemas`](https://github.com/tool2agent/tool2agent/tree/master/packages/schemas) — Zod schema generators that map user-defined domain type schemas to tool2agent schemas that use these domain types.
 
 # Motivation
 
@@ -43,9 +43,9 @@ A good feedback system combined with a very primitive schema may be better than 
 
 Although there are common LLM tool call validation patterns (beyond shared schemas), in a real application they may not be turned into reusable code, because that would require additional engineering efforts.
 
-Structuring the way information flows from tools to a LLM allows for programmatic consumption of that data, e.g. in the form of reusable [middleware](./packages/ai/src/middleware.ts).
+Structuring the way information flows from tools to a LLM allows for programmatic consumption of that data, e.g. in the form of reusable [middleware](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/src/middleware.ts).
 
-Additionally, tooling to _produce_ the feedback itself can be leveraged, an example of which is the [tool builder](./packages/ai/README.md#tool-builder) that integrates with AI SDK.
+Additionally, tooling to _produce_ the feedback itself can be leveraged, an example of which is the [tool builder](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/README.md#tool-builder) that integrates with AI SDK.
 
 ## Excessive token use
 
@@ -60,7 +60,7 @@ tool2agent-enabled workflows that use dynamic schemas may consume much fewer tok
 This project is an experiment, that is a result of multiple LLM workflow design ideas converging together.
 It remains to be seen what are the limits of this approach.
 
-I invite you to try applying it to your problems. Let's invent new [middleware](./packages/ai/src/middleware.ts) and tool builder utilities. Here are some areas to look into:
+I invite you to try applying it to your problems. Let's invent new [middleware](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/src/middleware.ts) and tool builder utilities. Here are some areas to look into:
 
 - Observability, Logging;
 - Rate limiting, Debouncing, Tool call polling;
