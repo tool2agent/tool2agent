@@ -1,0 +1,4 @@
+exclude = [
+    '^https?://(.*\.)?tool2agent\.org',  # exclude entire domain to prevent cyclic dependencies
+]
+
