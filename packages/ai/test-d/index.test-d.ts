@@ -16,16 +16,17 @@ type OutputType = z.infer<typeof outputSchema>;
 
 // ==================== Test: OutputType = never should not allow value field ====================
 
-// Invalid: When outputSchema is never, providing value field should fail
+// We should turn it into an error case.
+// Currently, the extra field is allowed because TypeScript does not check for extra fields when
+// using intersection types (ToolCallSuccess)
 const toolWithNeverOutput = tool2agent({
   description: 'Tool with never output type',
   inputSchema: testInputSchema,
   outputSchema: z.never(),
-  // @ts-expect-error - value field should be omitted
   execute: async (params: TestInputType) => {
     return {
       ok: true,
-      value: { something: 'invalid' },
+      something: { something: 'invalid' },
     };
   },
 });

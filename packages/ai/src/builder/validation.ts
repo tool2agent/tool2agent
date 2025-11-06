@@ -1,7 +1,7 @@
 import { type ParameterValidationResult, type NonEmptyArray } from '@tool2agent/types';
 import { detectRequiresCycles, toposortFields } from './graph.js';
 import { isDeepStrictEqual } from 'util';
-import { log, delayedLog } from '../internal/logger.js';
+import { delayedLog } from '../internal/logger.js';
 import type {
   ToolFieldConfig,
   ToolSpec,
@@ -45,7 +45,7 @@ export function buildContext<
   // Check if all required fields are present
   const missing = rule.requires.filter(dep => typeof validFields[dep] === 'undefined');
   if (missing.length > 0) {
-    log('validate:skipping (missing requirements)', { field: fieldKey, missing });
+    delayedLog(() => ['validate:skipping (missing requirements)', { field: fieldKey, missing }]);
     return {
       success: false,
       missingRequirements: missing as unknown as NonEmptyArray<keyof InputType>,
@@ -234,7 +234,7 @@ export async function validateToolInput<
 
   if (!allValidOrSkipped) {
     const res = { status: 'rejected', validationResults } as ToolCallRejected<InputType>;
-    log('validate:rejected', JSON.stringify(res, null, 2));
+    delayedLog(() => ['validate:rejected', JSON.stringify(res, null, 2)]);
     return res;
   }
 
@@ -242,6 +242,6 @@ export async function validateToolInput<
     status: 'accepted',
     value: validFields as InputType,
   } as ToolCallAccepted<InputType>;
-  log('validate:accepted', JSON.stringify(res, null, 2));
+  delayedLog(() => ['validate:accepted', JSON.stringify(res, null, 2)]);
   return res;
 }

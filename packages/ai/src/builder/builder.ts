@@ -10,9 +10,10 @@ import {
   type ToolSpec,
   type BuilderApi,
   type ToolFieldConfig,
-  HiddenSpecSymbol,
 } from './types.js';
 import { validateToolSpec, validateToolInput } from './validation.js';
+
+const HiddenSpecSymbol = Symbol('tool2agent-builder-spec');
 
 // Narrow structural type for the ai.tool definition to avoid deep generic instantiation
 type ToolDefinition<InputSchema extends z.ZodTypeAny, InputType, OutputType> = {
@@ -79,6 +80,17 @@ function buildToolLoose<
   };
   ret[HiddenSpecSymbol] = fullSpec;
   return ret;
+}
+
+/**
+ * Gets the tool specification from a tool for debugging. Only works for tools built with toolBuilder.
+ * @param tool - The tool to get the specification from.
+ * @returns The tool specification, or undefined if the tool was not built with toolBuilder.
+ */
+export function getToolBuilderSpec<
+  InputType extends Record<string, unknown> = Record<string, unknown>,
+>(tool: unknown): ToolSpec<InputType> | undefined {
+  return (tool as unknown as { [HiddenSpecSymbol]?: ToolSpec<InputType> })[HiddenSpecSymbol];
 }
 
 /** Creates a builder for tool definitions.

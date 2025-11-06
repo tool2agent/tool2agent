@@ -4,8 +4,8 @@ import {
   type ToolSpec,
   type ToolCallRejected,
   type ToolFieldConfig,
-  HiddenSpecSymbol,
 } from '../src/index.js';
+import { getToolBuilderSpec } from '../src/builder/builder.js';
 import { validateToolInput } from '../src/builder/validation.js';
 import { toposortFields } from '../src/builder/graph.js';
 import { mkAirlineBookingTool } from './airline.js';
@@ -32,11 +32,7 @@ const tool = mkAirlineBookingTool(entries, async input => {
   return input;
 });
 
-const spec = (
-  tool as unknown as {
-    [HiddenSpecSymbol]: ToolSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>;
-  }
-)[HiddenSpecSymbol];
+const spec = getToolBuilderSpec<Pick<Airline, 'departure' | 'arrival' | 'date' | 'passengers'>>(tool)!;
 
 describe('validation.unit.test.ts', () => {
   it('#1 validate rejects when fields are missing and provides allowedValues', async () => {

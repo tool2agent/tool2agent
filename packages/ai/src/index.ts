@@ -15,6 +15,5 @@ export {
   type ToolCallValidationResult,
   type ContextFor,
   type BuilderState,
-  HiddenSpecSymbol,
 } from './builder/types.js';
 export { createMiddleware, type Middleware, type MiddlewareOptions } from './middleware.js';

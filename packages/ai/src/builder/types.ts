@@ -157,8 +157,6 @@ export type ToolCallValidationResult<InputType extends Record<string, unknown>> 
   | ToolCallAccepted<InputType>
   | ToolCallRejected<InputType>;
 
-export const HiddenSpecSymbol = Symbol('HiddenSpec');
-
 export type BuildContextResult<
   InputType extends Record<string, unknown>,
   FieldName extends keyof InputType,
