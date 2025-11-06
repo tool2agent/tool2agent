@@ -35,11 +35,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build documentation
-        run: pnpm run docs
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Create docs directory
+        run: mkdir -p docs
+
+      - name: Convert README.md to HTML
+        run: pandoc README.md -o docs/index.html --standalone --css=https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown.min.css --metadata title="tool2agent"
 
       - name: Create CNAME file
-        run: echo "docs.tool2agent.org" > docs/CNAME
+        run: echo "tool2agent.org" > docs/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
