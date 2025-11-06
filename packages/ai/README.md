@@ -21,7 +21,7 @@ import { tool2agent, toolBuilder } from '@tool2agent/ai';
 This package implements tool2agent bindings for AI SDK in two forms:
 
 - `toolBuilder()` - a type-safe mini-framework for creating interactive LLM tools with rich feedback.
-- `tool2agent()` function is a tool2agent-enabled replacement for AI SDK `tool()` that gives full manual control over validation logic to the developer, providing only type safety.
+- `tool2agent()` - a tool2agent-enabled replacement for AI SDK `tool()` that gives full manual control over validation logic to the developer, providing only type safety.
 
 ### Tool builder
 
@@ -124,7 +124,7 @@ export type Middleware<
 - [airline-booking-chat](./examples/airline-booking-chat.ts) - interactive example demonstrating how to use `toolBuilder()` for building conversational agents with logical dependencies between parameters and complex validation logic
 - [censorship-bypass](./examples/censorship-bypass.ts) - shows how tool feedback can be used to guide the LLM towards its goal in the presence of an obstacle (word filter for search queries)
 - [middleware](./examples/middleware.ts) - demonstrates how middleware can be composed to add validation and execution logic around tool calls
-- [agent-consensus](./examples/agent-consensus.ts) - multiple agents reaching consensus using a knowledge base that keeps track of each other's constraints. tool2agent is used to provide feedback from that knowledge base.
+- [agent-consensus](./examples/agent-consensus.ts) - Multiple agents reaching consensus using a knowledge base that keeps track of each other's constraints. tool2agent is used to provide feedback from that knowledge base.
 
 ## See also
 

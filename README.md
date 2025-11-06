@@ -43,7 +43,7 @@ A good feedback system combined with a very primitive schema may be better than 
 
 Although there are common LLM tool call validation patterns (beyond shared schemas), in a real application they may not be turned into reusable code, because that would require additional engineering efforts.
 
-Structuring the way information flows from tools to a LLM allows for programmatic consumption of that data, e.g. in the form of reusable [middleware](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/src/middleware.ts).
+Structuring the way information flows from tools to an LLM allows for programmatic consumption of that data, e.g. in the form of reusable [middleware](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/src/middleware.ts).
 
 Additionally, tooling to _produce_ the feedback itself can be leveraged, an example of which is the [tool builder](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/README.md#tool-builder) that integrates with AI SDK.
 
@@ -57,12 +57,12 @@ tool2agent-enabled workflows that use dynamic schemas may consume much fewer tok
 
 # Status
 
-This project is an experiment, that is a result of multiple LLM workflow design ideas converging together.
-It remains to be seen what are the limits of this approach.
+This project is an experiment that is a result of multiple LLM workflow design ideas converging together.
+It remains to be seen what the limits of this approach are.
 
 I invite you to try applying it to your problems. Let's invent new [middleware](https://github.com/tool2agent/tool2agent/blob/master/packages/ai/src/middleware.ts) and tool builder utilities. Here are some areas to look into:
 
-- Observability, Logging;
-- Rate limiting, Debouncing, Tool call polling;
-- Automatic error fixup. Using cheaper models to fix tool call problems on the fly
+- Observability, Logging
+- Rate limiting, Debouncing, Tool call polling
+- Automatic error fixup: using cheaper models to fix tool call problems on the fly
 - Deriving tool feedback from app state
