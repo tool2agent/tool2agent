@@ -32,10 +32,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        if: matrix.zod == 4 && matrix.node-version == '24.x'
-        run: pnpm run lint
-
       - name: Use zod@${{ matrix.zod }}
         run: pnpm add -D zod@${{ matrix.zod }} --filter '@tool2agent/types'
 
@@ -46,6 +42,10 @@ jobs:
       - name: Build
         if: matrix.zod == 4
         run: pnpm run build
+
+      - name: Lint
+        if: matrix.zod == 4 && matrix.node-version == '24.x'
+        run: pnpm run lint
 
       - name: Run tests
         if: matrix.zod == 3
