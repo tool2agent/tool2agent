@@ -51,7 +51,7 @@ jobs:
           cd docs && \
           pandoc ../README.md -o index.html \
             --standalone \
-            --no-title \
+            -V title="" \
             --css=custom.css \
             --metadata title="tool2agent" \
             --metadata description="tool2agent is a protocol that enables LLM agents to navigate complex business constraints through trial and error by communicating rich and structured feedback data from tools."
