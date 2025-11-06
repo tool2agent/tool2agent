@@ -40,21 +40,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pandoc
 
+      - name: Build documentation
+        run: pnpm run docs
+
       - name: Create build directory
-        run: mkdir -p _site/docs
+        run: mkdir -p _site
 
-      - name: Copy CSS to docs directory
-        run: cp static/custom.css _site/docs/custom.css
+      - name: Copy CSS to build directory
+        run: cp static/custom.css _site/custom.css
 
-      - name: Convert README.md to HTML
+      - name: Convert README.md to HTML for root
         run: |
-          cd _site/docs && \
-          pandoc ../../README.md -o index.html \
+          cd _site && \
+          pandoc ../README.md -o index.html \
             --standalone \
             -V title="" \
             --css=custom.css \
             --metadata title="tool2agent" \
             --metadata description="tool2agent is a protocol that enables LLM agents to navigate complex business constraints through trial and error by communicating rich and structured feedback data from tools."
+
+      - name: Copy docs directory
+        run: cp -r docs _site/docs
 
       - name: Create CNAME file
         run: echo "tool2agent.org" > _site/CNAME
