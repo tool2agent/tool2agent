@@ -90,7 +90,7 @@ function buildToolLoose<
 export function getToolBuilderSpec<
   InputType extends Record<string, unknown> = Record<string, unknown>,
 >(tool: unknown): ToolSpec<InputType> | undefined {
-  return (tool as unknown as { [HiddenSpecSymbol]?: ToolSpec<InputType> })[HiddenSpecSymbol];
+  return (tool as { [HiddenSpecSymbol]?: ToolSpec<InputType> })[HiddenSpecSymbol];
 }
 
 /** Creates a builder for tool definitions.
