@@ -16,7 +16,7 @@
     "docs": "pnpm run build && typedoc",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm run clean && pnpm build && pnpm test && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
