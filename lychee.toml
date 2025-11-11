@@ -1,4 +1,5 @@
 exclude = [
     '^https?://(.*\.)?tool2agent\.org',  # exclude entire domain to prevent cyclic dependencies
+    '^https?://(.*\.)?npmjs\.com',  # exclude npmjs.com to avoid 403 errors
 ]
 
