@@ -1,0 +1,74 @@
+{
+  "name": "@tool2agent/middleware-idempotency",
+  "version": "0.0.1",
+  "description": "Idempotency middleware for tool2agent",
+  "type": "module",
+  "main": "dist-cjs/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist-cjs/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "dist-cjs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.cjs.json",
+    "build:all": "tsc -p tsconfig-all.json",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist dist-cjs",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test": "pnpm test:unit",
+    "test:unit": "mocha --config .mocharc.unit.json",
+    "test:watch": "mocha --config .mocharc.unit.json --watch",
+    "prepack": "pnpm run build"
+  },
+  "keywords": [
+    "tool2agent",
+    "middleware"
+  ],
+  "author": "klntsky",
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tool2agent/tool2agent.git"
+  },
+  "homepage": "https://github.com/tool2agent/tool2agent#readme",
+  "bugs": {
+    "url": "https://github.com/tool2agent/tool2agent/issues"
+  },
+  "readme": "README.md",
+  "dependencies": {
+    "@tool2agent/ai": "workspace:*",
+    "@tool2agent/types": "workspace:*",
+    "object-hash": "^3.0.0"
+  },
+  "devDependencies": {
+    "@ai-sdk/provider-utils": "^3.0.13",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.9.2",
+    "@types/object-hash": "^3.0.6",
+    "chai": "^5.2.0",
+    "mocha": "^11.5.0",
+    "mocha-suppress-logs": "^0.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "zod": "^4.1.12"
+  },
+  "peerDependencies": {
+    "zod": "^4"
+  }
+}

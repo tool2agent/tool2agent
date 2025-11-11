@@ -1,0 +1,7 @@
+{
+  "spec": "test/**/*.unit.test.ts",
+  "loader": "ts-node/esm",
+  "extensions": ["ts"],
+  "recursive": true,
+  "require": ["mocha-suppress-logs"]
+}
