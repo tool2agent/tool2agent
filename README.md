@@ -14,6 +14,10 @@ Technically speaking, tool2agent is a set of conventions that allow structuring 
 
 - [`@tool2agent/ai`](https://github.com/tool2agent/tool2agent/tree/master/packages/ai) — Bindings for AI SDK.
 
+### Middleware for AI SDK
+
+- [`@tool2agent/middleware-idempotency`](https://github.com/tool2agent/tool2agent/tree/master/packages/middleware-idempotency) - make a tool2agent tool idempotent (refuse execution with the same parameters more than once).
+
 ## For tool2agent tooling developers
 
 - [`@tool2agent/types`](https://github.com/tool2agent/tool2agent/tree/master/packages/types) — TypeScript type definitions for the protocol that act as a specification.
