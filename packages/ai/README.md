@@ -92,7 +92,54 @@ function tool2agent<
 - AI SDK `tool()` does nothing and exists only for type checking, while `tool2agent()` builds the tool's `execute()` method
 - `tool()` passes exceptions through, while `tool2agent()` catches exceptions and returns them formatted nicely to the LLM as tool2agent `problems`
 - `tool2agent()` mandates input and output schemas. Use `never` / `z.never()` for output schema if it is not needed.
-- `tool2agent()` expects a json-serializable output type, and for this reason, it does not support providing custom `toModelOutput`
+- `tool2agent()` supports custom `toModelOutput` to transform tool results for the language model (see below)
+
+</details>
+
+### Custom `toModelOutput`
+
+By default, tool results are sent to the language model as JSON. You can provide a custom `toModelOutput` function to convert results to plain text or a custom JSON format.
+
+```typescript
+import { tool2agent, createTextOutput } from '@tool2agent/ai';
+
+const tool = tool2agent({
+  inputSchema,
+  outputSchema,
+  execute: async input => ({ ok: true, result: 'success' }),
+  // Convert result to plain text
+  toModelOutput: createTextOutput(result => {
+    if (result.ok) {
+      return `Result: ${result.result}`;
+    }
+    return `Error: ${result.problems?.join(', ')}`;
+  }),
+});
+```
+
+<details>
+<summary><strong>Available helpers</strong></summary>
+
+- `createTextOutput(render)` - Creates a text output from a render function
+- `createJsonOutput(transform?)` - Creates a JSON output, optionally transforming the result
+
+```typescript
+import { createTextOutput, createJsonOutput } from '@tool2agent/ai';
+
+// Text output
+const textOutput = createTextOutput<Input, Output>(result => {
+  if (result.ok) {
+    return `Success: ${JSON.stringify(result)}`;
+  }
+  return `Failed: ${result.problems?.join(', ')}`;
+});
+
+// JSON output with transformation
+const jsonOutput = createJsonOutput<Input, Output>(result => ({
+  success: result.ok,
+  data: result.ok ? result : null,
+}));
+```
 
 </details>
 
