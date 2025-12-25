@@ -92,7 +92,86 @@ function tool2agent<
 - AI SDK `tool()` does nothing and exists only for type checking, while `tool2agent()` builds the tool's `execute()` method
 - `tool()` passes exceptions through, while `tool2agent()` catches exceptions and returns them formatted nicely to the LLM as tool2agent `problems`
 - `tool2agent()` mandates input and output schemas. Use `never` / `z.never()` for output schema if it is not needed.
-- `tool2agent()` expects a json-serializable output type, and for this reason, it does not support providing custom `toModelOutput`
+- `tool2agent()` supports custom `toModelOutput` to transform tool results for the language model (see below)
+
+</details>
+
+### Custom `toModelOutput`
+
+By default, tool results are sent to the language model as JSON. You can customize this with `toModelOutput` to:
+
+- Convert results to plain text or YAML-like format
+- Include multipart responses with images/media
+- Provide cleaner, more readable output for the LLM
+
+<details>
+<summary><strong>Using <code>createToModelOutput</code></strong></summary>
+
+The `createToModelOutput` builder creates a `toModelOutput` function from renderers:
+
+```typescript
+import { tool2agent, createToModelOutput } from '@tool2agent/ai';
+
+const toModelOutput = createToModelOutput<InputType, OutputType>({
+  // Render successful outputs
+  renderOutput: output => ({
+    type: 'text',
+    value: `Result: ${output.name}`,
+  }),
+  // Optional: custom failure renderer
+  renderFailure: failure => ({
+    type: 'error-text',
+    value: `Error: ${JSON.stringify(failure.problems)}`,
+  }),
+});
+
+const tool = tool2agent({
+  inputSchema,
+  outputSchema,
+  execute: async input => ({ ok: true, ...result }),
+  toModelOutput,
+});
+```
+
+</details>
+
+<details>
+<summary><strong>Multipart responses with media</strong></summary>
+
+For tools that return images or other media:
+
+```typescript
+const toModelOutput = createToModelOutput<Input, Output>({
+  renderOutput: output => ({
+    type: 'content',
+    value: [
+      { type: 'text', text: `Screenshot: ${output.name}` },
+      { type: 'media', data: output.imageBase64, mediaType: 'image/png' },
+    ],
+  }),
+});
+```
+
+Note: The library cannot automatically extract media from your output type. You must provide a custom renderer that knows how to unwrap media from your data structure.
+
+</details>
+
+<details>
+<summary><strong>Text-only output</strong></summary>
+
+Use `createTextToModelOutput` for simple text conversion:
+
+```typescript
+import { createTextToModelOutput, yamlLikeFormatter } from '@tool2agent/ai';
+
+// Default: JSON.stringify with formatting
+const toModelOutput = createTextToModelOutput<Input, Output>();
+
+// Custom formatter (e.g., YAML-like)
+const toModelOutput = createTextToModelOutput<Input, Output>({
+  formatOutput: yamlLikeFormatter,
+});
+```
 
 </details>
 

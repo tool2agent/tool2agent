@@ -17,3 +17,19 @@ export {
   type BuilderState,
 } from './builder/types.js';
 export { createMiddleware, type Middleware, type MiddlewareOptions } from './middleware.js';
+export {
+  createToModelOutput,
+  createTextToModelOutput,
+  yamlLikeFormatter,
+  type ModelOutput,
+  type ModelOutputText,
+  type ModelOutputJson,
+  type ModelOutputErrorText,
+  type ModelOutputErrorJson,
+  type ModelOutputContent,
+  type ContentPartText,
+  type ContentPartMedia,
+  type OutputRenderer,
+  type FailureRenderer,
+  type CreateToModelOutputOptions,
+} from './to-model-output.js';
