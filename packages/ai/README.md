@@ -98,79 +98,47 @@ function tool2agent<
 
 ### Custom `toModelOutput`
 
-By default, tool results are sent to the language model as JSON. You can customize this with `toModelOutput` to:
-
-- Convert results to plain text or YAML-like format
-- Include multipart responses with images/media
-- Provide cleaner, more readable output for the LLM
-
-<details>
-<summary><strong>Using <code>createToModelOutput</code></strong></summary>
-
-The `createToModelOutput` builder creates a `toModelOutput` function from renderers:
+By default, tool results are sent to the language model as JSON. You can provide a custom `toModelOutput` function to convert results to plain text or a custom JSON format.
 
 ```typescript
-import { tool2agent, createToModelOutput } from '@tool2agent/ai';
-
-const toModelOutput = createToModelOutput<InputType, OutputType>({
-  // Render successful outputs
-  renderOutput: output => ({
-    type: 'text',
-    value: `Result: ${output.name}`,
-  }),
-  // Optional: custom failure renderer
-  renderFailure: failure => ({
-    type: 'error-text',
-    value: `Error: ${JSON.stringify(failure.problems)}`,
-  }),
-});
+import { tool2agent, createTextOutput } from '@tool2agent/ai';
 
 const tool = tool2agent({
   inputSchema,
   outputSchema,
-  execute: async input => ({ ok: true, ...result }),
-  toModelOutput,
-});
-```
-
-</details>
-
-<details>
-<summary><strong>Multipart responses with media</strong></summary>
-
-For tools that return images or other media:
-
-```typescript
-const toModelOutput = createToModelOutput<Input, Output>({
-  renderOutput: output => ({
-    type: 'content',
-    value: [
-      { type: 'text', text: `Screenshot: ${output.name}` },
-      { type: 'media', data: output.imageBase64, mediaType: 'image/png' },
-    ],
+  execute: async input => ({ ok: true, result: 'success' }),
+  // Convert result to plain text
+  toModelOutput: createTextOutput(result => {
+    if (result.ok) {
+      return `Result: ${result.result}`;
+    }
+    return `Error: ${result.problems?.join(', ')}`;
   }),
 });
 ```
 
-Note: The library cannot automatically extract media from your output type. You must provide a custom renderer that knows how to unwrap media from your data structure.
-
-</details>
-
 <details>
-<summary><strong>Text-only output</strong></summary>
+<summary><strong>Available helpers</strong></summary>
 
-Use `createTextToModelOutput` for simple text conversion:
+- `createTextOutput(render)` - Creates a text output from a render function
+- `createJsonOutput(transform?)` - Creates a JSON output, optionally transforming the result
 
 ```typescript
-import { createTextToModelOutput, yamlLikeFormatter } from '@tool2agent/ai';
+import { createTextOutput, createJsonOutput } from '@tool2agent/ai';
 
-// Default: JSON.stringify with formatting
-const toModelOutput = createTextToModelOutput<Input, Output>();
-
-// Custom formatter (e.g., YAML-like)
-const toModelOutput = createTextToModelOutput<Input, Output>({
-  formatOutput: yamlLikeFormatter,
+// Text output
+const textOutput = createTextOutput<Input, Output>(result => {
+  if (result.ok) {
+    return `Success: ${JSON.stringify(result)}`;
+  }
+  return `Failed: ${result.problems?.join(', ')}`;
 });
+
+// JSON output with transformation
+const jsonOutput = createJsonOutput<Input, Output>(result => ({
+  success: result.ok,
+  data: result.ok ? result : null,
+}));
 ```
 
 </details>
