@@ -155,6 +155,46 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12
 
+  packages/middleware-logging:
+    dependencies:
+      '@tool2agent/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@tool2agent/types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@ai-sdk/provider-utils':
+        specifier: ^3.0.13
+        version: 3.0.14(zod@4.1.12)
+      '@types/chai':
+        specifier: ^5.2.2
+        version: 5.2.3
+      '@types/mocha':
+        specifier: ^10.0.10
+        version: 10.0.10
+      '@types/node':
+        specifier: ^24.9.2
+        version: 24.9.2
+      chai:
+        specifier: ^5.2.0
+        version: 5.3.3
+      mocha:
+        specifier: ^11.5.0
+        version: 11.7.4
+      mocha-suppress-logs:
+        specifier: ^0.6.0
+        version: 0.6.0
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@24.9.2)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
+
   packages/schemas:
     dependencies:
       '@tool2agent/types':

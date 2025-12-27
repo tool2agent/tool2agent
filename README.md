@@ -17,6 +17,7 @@ Technically speaking, tool2agent is a set of conventions that allow structuring 
 ### Middleware for AI SDK
 
 - [`@tool2agent/middleware-idempotency`](https://github.com/tool2agent/tool2agent/tree/master/packages/middleware-idempotency) - make a tool2agent tool idempotent (refuse execution with the same parameters more than once).
+- [`@tool2agent/middleware-logging`](https://github.com/tool2agent/tool2agent/tree/master/packages/middleware-logging) - log tool call inputs, outputs, and timing information with a configurable logger function.
 
 ## For tool2agent tooling developers
 
