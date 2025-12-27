@@ -16,6 +16,10 @@
     "declarationMap": true,
     "sourceMap": true
   },
+  "ts-node": {
+    "transpileOnly": true,
+    "esm": true
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test-d"]
 }
