@@ -80,22 +80,24 @@ export type Tool2Agent<InputType, OutputType> = {
  * Parameters for creating a Tool2Agent.
  * @template InputSchema - The Zod schema for the tool's input.
  * @template OutputSchema - The Zod schema for the tool's output.
+ * @template InputType - The type of input received by the execute function. Defaults to `z.infer<InputSchema>`.
+ *                       This can be set to a supertype of `z.infer<InputSchema>` when middleware extends inputs.
+ * @template OutputType - The type of output produced by the execute function. Defaults to `z.infer<OutputSchema>`.
  */
 export type Tool2AgentParams<
   InputSchema extends z.ZodTypeAny,
   OutputSchema extends z.ZodTypeAny,
+  InputType = z.infer<InputSchema>,
+  OutputType = z.infer<OutputSchema>,
 > = {
   inputSchema: InputSchema;
   outputSchema: OutputSchema;
   execute: (
-    input: z.infer<InputSchema>,
+    input: InputType,
     options: ToolCallOptions,
-  ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
+  ) => Promise<ToolCallResult<InputType, OutputType>>;
   catchExceptions?: boolean;
-} & Omit<
-  Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>,
-  'inputSchema' | 'outputSchema' | 'execute'
->;
+} & Omit<Tool2Agent<InputType, OutputType>, 'inputSchema' | 'outputSchema' | 'execute'>;
 
 /**
  * Wrapper over tool() function from AI SDK that enriches it with feedback.
@@ -113,20 +115,39 @@ export type Tool2AgentParams<
  *     return { ok: true, value: { greeting: `Hello, ${params.name}!` } };
  *   },
  * });
+ *
+ * @example
+ * // With explicit InputType that extends the schema type (useful for middleware)
+ * type ExtendedInput = z.infer<typeof inputSchema> & { extraContext: string };
+ * const tool = tool2agent<typeof inputSchema, typeof outputSchema, ExtendedInput>({
+ *   inputSchema,
+ *   outputSchema,
+ *   execute: async (params: ExtendedInput) => {
+ *     // params.extraContext is available here, added by middleware
+ *     return { ok: true, value: { greeting: `Hello!` } };
+ *   },
+ * });
  */
-export function tool2agent<InputSchema extends z.ZodTypeAny, OutputSchema extends z.ZodTypeAny>(
-  params: Tool2AgentParams<InputSchema, OutputSchema>,
-): Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>> {
+export function tool2agent<
+  InputSchema extends z.ZodTypeAny,
+  OutputSchema extends z.ZodTypeAny,
+  InputType = z.infer<InputSchema>,
+  OutputType = z.infer<OutputSchema>,
+>(
+  params: Tool2AgentParams<InputSchema, OutputSchema, InputType, OutputType>,
+): Tool2Agent<InputType, OutputType> {
   const {
     execute,
     inputSchema: inputSchemaParam,
     outputSchema: outputSchemaParam,
     ...rest
   } = params;
-  type InputType = z.infer<InputSchema>;
-  type OutputType = z.infer<OutputSchema>;
-  const inputSchema = inputSchemaParam as z.ZodType<InputType>;
-  const outputSchema = outputSchemaParam as z.ZodType<OutputType>;
+  // Note: InputType and OutputType come from generic parameters, defaulting to z.infer<Schema>
+  // They may diverge from the schema types when middleware extends inputs.
+  // The inputSchema is used for validation by the LLM, while InputType represents
+  // what the execute function actually receives (which may have additional fields).
+  const inputSchema = inputSchemaParam as z.ZodType<z.infer<InputSchema>>;
+  const outputSchema = outputSchemaParam as z.ZodType<z.infer<OutputSchema>>;
   const executeFunction = async (
     input: InputType,
     options: ToolCallOptions,
@@ -145,14 +166,19 @@ export function tool2agent<InputSchema extends z.ZodTypeAny, OutputSchema extend
   };
 
   // Convert outputSchema to ToolCallResult schema
+  // Note: createToolCallResultSchema uses the schema types for validation purposes.
+  // The InputType/OutputType generic params are used for the ToolCallResult type.
   const toolCallResultSchema = createToolCallResultSchema<InputType, OutputType>(
-    inputSchema,
-    outputSchema,
+    inputSchema as unknown as z.ZodType<InputType>,
+    outputSchema as unknown as z.ZodType<OutputType>,
   );
 
   const theTool: Tool2Agent<InputType, OutputType> = {
     ...rest,
-    inputSchema,
+    // The inputSchema is what the LLM sees for generating inputs.
+    // We cast to InputType since InputType may be a supertype of SchemaInputType
+    // (e.g., when middleware extends inputs with additional context).
+    inputSchema: inputSchema as unknown as z.ZodType<InputType>,
     outputSchema: toolCallResultSchema,
     execute: executeFunction,
   };

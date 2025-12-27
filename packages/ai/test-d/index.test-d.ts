@@ -63,3 +63,48 @@ type TestExecuteRequired = Expect<
 
 // Runtime test: verify execute exists at runtime
 const _testExecuteExists: typeof testTool.execute = testTool.execute;
+
+// ==================== Test: InputType can diverge from InputSchema ====================
+// This is useful for middleware that extends inputs with additional context
+
+// Define the base input schema (what the LLM generates)
+const baseInputSchema = z.object({
+  query: z.string(),
+});
+
+// Define an extended input type (what middleware adds)
+type ExtendedInput = z.infer<typeof baseInputSchema> & {
+  middlewareContext: {
+    userId: string;
+    requestId: string;
+  };
+};
+
+// Test that tool2agent allows InputType to diverge from z.infer<InputSchema>
+const toolWithExtendedInput = tool2agent<
+  typeof baseInputSchema,
+  typeof outputSchema,
+  ExtendedInput
+>({
+  description: 'Tool with extended input type',
+  inputSchema: baseInputSchema,
+  outputSchema: z.never(),
+  execute: async (params: ExtendedInput) => {
+    // Verify that both base input and middleware context are accessible
+    const _query: string = params.query;
+    const _userId: string = params.middlewareContext.userId;
+    const _requestId: string = params.middlewareContext.requestId;
+    return { ok: true as const };
+  },
+});
+
+// Type-level test: verify the tool has the correct extended input type
+type TestExtendedInputType = Expect<
+  Equal<Parameters<typeof toolWithExtendedInput.execute>[0], ExtendedInput>
+>;
+
+// Type-level test: verify the inputSchema is typed with ExtendedInput
+// (The tool's inputSchema type follows the InputType generic param)
+type TestInputSchemaType = Expect<
+  Equal<z.infer<typeof toolWithExtendedInput.inputSchema>, ExtendedInput>
+>;
