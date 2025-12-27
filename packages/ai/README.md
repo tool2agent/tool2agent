@@ -123,6 +123,7 @@ export type Middleware<
 
 - [airline-booking-chat](./examples/airline-booking-chat.ts) - interactive example demonstrating how to use `toolBuilder()` for building conversational agents with logical dependencies between parameters and complex validation logic
 - [censorship-bypass](./examples/censorship-bypass.ts) - shows how tool feedback can be used to guide the LLM towards its goal in the presence of an obstacle (word filter for search queries)
+- [dynamic-schema](./examples/dynamic-schema.ts) - demonstrates `dynamicParameterSchema` for runtime schema discovery, where the expected data structure depends on context
 - [middleware](./examples/middleware.ts) - demonstrates how middleware can be composed to add validation and execution logic around tool calls
 - [agent-consensus](./examples/agent-consensus.ts) - Multiple agents reaching consensus using a knowledge base that keeps track of each other's constraints. tool2agent is used to provide feedback from that knowledge base.
 
