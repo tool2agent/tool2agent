@@ -155,6 +155,18 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12
 
+  packages/prompts:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.18.13
+      tsx:
+        specifier: ^4.20.6
+        version: 4.20.6
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/schemas:
     dependencies:
       '@tool2agent/types':
