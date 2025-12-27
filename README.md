@@ -16,6 +16,7 @@ Technically speaking, tool2agent is a set of conventions that allow structuring 
 
 ### Middleware for AI SDK
 
+- [`@tool2agent/middleware-catch-exceptions`](https://github.com/tool2agent/tool2agent/tree/master/packages/middleware-catch-exceptions) - catch exceptions during tool execution and convert them to structured `ToolCallFailure` responses.
 - [`@tool2agent/middleware-idempotency`](https://github.com/tool2agent/tool2agent/tree/master/packages/middleware-idempotency) - make a tool2agent tool idempotent (refuse execution with the same parameters more than once).
 
 ## For tool2agent tooling developers
