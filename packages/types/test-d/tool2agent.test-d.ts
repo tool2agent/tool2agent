@@ -10,6 +10,9 @@ import {
 import * as z from 'zod';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
+// NOTE: AtLeastOne/AtMostOne constraints have been removed from the type system
+// and are now enforced at runtime through Zod schemas. This simplifies type
+// inference while maintaining runtime safety.
 
 type TestParams = {
   name: string;
@@ -17,7 +20,7 @@ type TestParams = {
   email?: string;
 };
 
-// ==================== ToolCallAccepted Tests ====================
+// ==================== ToolCallSuccess Tests ====================
 
 // Valid: Accepted tool call with all required fields
 const validAccepted: ToolCallSuccess<TestParams> = {
@@ -107,7 +110,7 @@ const emptyFeedback: [] = [];
 // @ts-expect-error - empty array cannot be NonEmptyArray
 checkFeedback({ ok: true, value: { name: 'John', age: 30 }, feedback: emptyFeedback });
 
-// ==================== ToolCallRejected Tests ====================
+// ==================== ToolCallFailure Tests ====================
 
 // Valid: Rejected with validation results
 const validRejectedWithValidation: ToolCallFailure<TestParams> = {
@@ -120,15 +123,14 @@ const validRejectedWithValidation: ToolCallFailure<TestParams> = {
   },
 };
 
-// Valid: Rejected with validation results
-const invalidRejectedWithValidation: ToolCallFailure<TestParams> = {
+// Valid: Now allowed - empty validationResults (constraint is at runtime now)
+const validRejectedEmptyValidation: ToolCallFailure<TestParams> = {
   ok: false,
-  // @ts-expect-error - need at least one key here
   validationResults: {},
 };
 
-// @ts-expect-error - need at least one key here
-const invalidRejectedWithValidation2: ToolCallFailure<TestParams> = {
+// Valid: Now allowed - neither field (constraint is at runtime now)
+const validRejectedNeither: ToolCallFailure<TestParams> = {
   ok: false,
 };
 
@@ -150,19 +152,13 @@ const validRejectedWithBoth: ToolCallFailure<TestParams> = {
   problems: ['Additional system error'],
 };
 
-// Invalid: Rejected with neither validation results nor rejection reasons (violates AtLeastOne)
-// Demonstrated via function parameter
-function expectRejected(x: ToolCallFailure<TestParams>) {}
-// @ts-expect-error - at least one of validationResults or problems is required
-expectRejected({ ok: false });
-
 // Demonstrate empty problems detection
 function checkRejected(x: ToolCallFailure<TestParams>) {}
 const emptyReasons: [] = [];
 // @ts-expect-error - empty array cannot be NonEmptyArray
 checkRejected({ ok: false, problems: emptyReasons });
 
-// ==================== ParameterFeedback Tests ====================
+// ==================== ParameterValidationResult Tests ====================
 
 // Valid: Parameter feedback with valid status
 const validParamFeedbackValid: ParameterValidationResult<TestParams, 'name'> = {
@@ -193,11 +189,10 @@ const validParamFeedbackRequires: ParameterValidationResult<TestParams, 'email'>
   requiresValidParameters: ['name'],
 };
 
-// Invalid: Parameter feedback with invalid status but no refusal info (violates AtLeastOne)
-// Demonstrated via function parameter
-function expectParamFeedbackInvalid(x: ParameterValidationResult<TestParams, 'name'>) {}
-// @ts-expect-error - invalid feedback must have problems or requiresValidParameters
-expectParamFeedbackInvalid({ valid: false });
+// Valid: Now allowed - invalid feedback without refusal info (constraint is at runtime now)
+const validParamFeedbackEmpty: ParameterValidationResult<TestParams, 'name'> = {
+  valid: false,
+};
 
 // Demonstrate empty array detection for parameter feedback
 function checkParamFeedback(x: ParameterValidationResult<TestParams, 'name'>) {}
@@ -229,9 +224,8 @@ const validAcceptableEmptyAllowed: AcceptableValues<string> = {
   allowedValues: [],
 };
 
-// Invalid: Both allowedValues and suggestedValues (violates AtMostOne)
-// @ts-expect-error - at most one of allowedValues or suggestedValues can be provided
-const invalidAcceptableBoth: AcceptableValues<string> = {
+// Valid: Now allowed - both allowedValues and suggestedValues (constraint is at runtime now)
+const validAcceptableBoth: AcceptableValues<string> = {
   allowedValues: ['option1'],
   suggestedValues: ['suggestion1'],
 };
@@ -334,56 +328,56 @@ const invalidEmpty2: ToolCallSuccess<never> = {
   baz: 'foobar',
 };
 
-// ==================== SingleParameterFeedback Tests ====================
+// ==================== ValueFailureFeedback Tests ====================
 
-// Valid: SingleParameterFeedback with required problems field
+// Valid: ValueFailureFeedback with required problems field
 const validSinglePfProblems: ValueFailureFeedback<string> = {
   problems: ['Invalid format'],
 };
 
-// Valid: SingleParameterFeedback with problems and normalizedValue
+// Valid: ValueFailureFeedback with problems and normalizedValue
 const validSinglePfNormalized: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   normalizedValue: 'normalized',
 };
 
-// Valid: SingleParameterFeedback with problems and dynamicParameterSchema
+// Valid: ValueFailureFeedback with problems and dynamicParameterSchema
 const validSinglePfDynamic: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   dynamicParameterSchema: z.enum(['a', 'b']),
 };
 
-// Valid: SingleParameterFeedback with problems and feedback
+// Valid: ValueFailureFeedback with problems and feedback
 const validSinglePfFeedback: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   feedback: ['Please correct'],
 };
 
-// Valid: SingleParameterFeedback with problems and instructions
+// Valid: ValueFailureFeedback with problems and instructions
 const validSinglePfInstructions: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   instructions: ['Follow these steps'],
 };
 
-// Valid: SingleParameterFeedback with problems and allowedValues (empty array)
+// Valid: ValueFailureFeedback with problems and allowedValues (empty array)
 const validSinglePfEmptyAllowed: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   allowedValues: [],
 };
 
-// Valid: SingleParameterFeedback with problems and allowedValues (non-empty)
+// Valid: ValueFailureFeedback with problems and allowedValues (non-empty)
 const validSinglePfAllowed: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   allowedValues: ['valid1', 'valid2'],
 };
 
-// Valid: SingleParameterFeedback with problems and suggestedValues
+// Valid: ValueFailureFeedback with problems and suggestedValues
 const validSinglePfSuggested: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   suggestedValues: ['valid1', 'valid2'],
 };
 
-// Valid: SingleParameterFeedback with all optional fields combined
+// Valid: ValueFailureFeedback with all optional fields combined
 const validSinglePfAllFields: ValueFailureFeedback<string> = {
   problems: ['Invalid format'],
   normalizedValue: 'normalized',
@@ -393,7 +387,7 @@ const validSinglePfAllFields: ValueFailureFeedback<string> = {
   allowedValues: ['valid1'],
 };
 
-// Valid: SingleParameterFeedback with suggestedValues instead of allowedValues
+// Valid: ValueFailureFeedback with suggestedValues instead of allowedValues
 const validSinglePfAllFieldsSuggested: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   normalizedValue: 'normalized',
@@ -403,7 +397,7 @@ const validSinglePfAllFieldsSuggested: ValueFailureFeedback<string> = {
   suggestedValues: ['valid1', 'valid2'],
 };
 
-// Valid: SingleParameterFeedback with none of allowedValues/suggestedValues (empty AcceptableValues)
+// Valid: ValueFailureFeedback with none of allowedValues/suggestedValues (empty AcceptableValues)
 const validSinglePfNoAcceptableValues: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   normalizedValue: 'normalized',
@@ -419,9 +413,8 @@ expectSinglePf({
   normalizedValue: 'normalized',
 });
 
-// Invalid: Both allowedValues and suggestedValues (violates AtMostOne)
-// @ts-expect-error - at most one of allowedValues or suggestedValues can be provided
-const invalidSinglePfBothValues: ValueFailureFeedback<string> = {
+// Valid: Now allowed - both allowedValues and suggestedValues (constraint is at runtime now)
+const validSinglePfBothValues: ValueFailureFeedback<string> = {
   problems: ['Invalid'],
   allowedValues: ['a'],
   suggestedValues: ['b'],
@@ -448,15 +441,15 @@ const emptySuggestedForSinglePf: [] = [];
 // @ts-expect-error - empty array cannot be NonEmptyArray
 checkSinglePf({ problems: ['Invalid'], suggestedValues: emptySuggestedForSinglePf });
 
-// ==================== ToolCallRejected with Non-Record Input Types ====================
+// ==================== ToolCallFailure with Non-Record Input Types ====================
 
-// Valid: Rejected with non-record input (string) - uses SingleParameterFeedback
+// Valid: Rejected with non-record input (string) - uses ValueFailureFeedback
 const validRejectedString: ToolCallFailure<string> = {
   ok: false,
   problems: ['Invalid format'],
 };
 
-// Valid: Rejected with non-record input (string) - with all SingleParameterFeedback fields
+// Valid: Rejected with non-record input (string) - with all ValueFailureFeedback fields
 const validRejectedStringFull: ToolCallFailure<string> = {
   ok: false,
   problems: ['Invalid'],
@@ -483,7 +476,7 @@ const validRejectedArray: ToolCallFailure<string[]> = {
 
 // Invalid: Rejected with non-record input but missing problems (required)
 function expectRejectedString(x: ToolCallFailure<string>) {}
-// @ts-expect-error - problems is required for SingleParameterFeedback
+// @ts-expect-error - problems is required for ValueFailureFeedback
 expectRejectedString({
   ok: false,
   normalizedValue: 'normalized',
@@ -493,6 +486,6 @@ expectRejectedString({
 const invalidRejectedStringWithValidation: ToolCallFailure<string> = {
   ok: false,
   problems: ['Invalid'],
-  // @ts-expect-error - validationResults does not exist in ToolCallRejected for non-record inputs
+  // @ts-expect-error - validationResults does not exist in ToolCallFailure for non-record inputs
   validationResults: {},
 };
