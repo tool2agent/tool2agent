@@ -41,7 +41,7 @@ const result = await safeTool.execute({ query: 'test' }, ...);
 ```typescript
 const safeTool = catchExceptions<InputType, OutputType>({
   formatProblems: (error, input) => [
-    `Failed to process ${input.query}: ${error instanceof Error ? error.message : String(error)}`
+    `Failed to process ${input.query}: ${error instanceof Error ? error.message : String(error)}`,
   ],
   formatInstructions: () => ['Please check your input and try again.'],
   onException: (error, input) => console.error('Tool execution failed:', error),
@@ -65,8 +65,9 @@ This middleware can be composed with other middlewares using `.pipe()`:
 import { catchExceptions } from '@tool2agent/middleware-catch-exceptions';
 import { idempotency } from '@tool2agent/middleware-idempotency';
 
-const middleware = catchExceptions<InputType, OutputType>()
-  .pipe(idempotency<InputType, OutputType>());
+const middleware = catchExceptions<InputType, OutputType>().pipe(
+  idempotency<InputType, OutputType>(),
+);
 
 const safeTool = middleware.applyTo(baseTool);
 ```
