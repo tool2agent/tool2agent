@@ -623,8 +623,8 @@ test('type inference tests', async t => {
 
     expectParseOK(rejectedSchema, rejectedWithReasons);
 
-    // Negative: typed value violating AtLeastOne constraint
-    // @ts-expect-error - Missing both validationResults and problems
+    // Negative: missing both validationResults and problems (validated at runtime)
+    // Note: AtLeastOne constraint removed from type system, now enforced at runtime
     const invalidRejected: RejectedType = {
       ok: false,
       // Missing both validationResults and problems
@@ -660,12 +660,12 @@ test('type inference tests', async t => {
 
     expectParseOK(paramSchema, invalidParam);
 
-    // Negative: typed value violating AtMostOne constraint
-    // @ts-expect-error - Both allowedValues and suggestedValues violates AtMostOne
+    // Negative: both allowedValues and suggestedValues (validated at runtime)
+    // Note: AtMostOne constraint removed from type system, now enforced at runtime
     const invalidBothValues: ParamFeedbackType = {
       valid: true,
       allowedValues: ['a'],
-      suggestedValues: ['b'], // Violates AtMostOne
+      suggestedValues: ['b'], // Violates AtMostOne at runtime
     };
 
     expectParseFail(paramSchema, invalidBothValues);
@@ -730,8 +730,8 @@ test('type inference tests', async t => {
 
     expectParseOK(emptyToolSchema, rejectedWithEmptyValidation);
 
-    // Negative: missing both validationResults and problems
-    // @ts-expect-error - Missing both validationResults and problems
+    // Negative: missing both validationResults and problems (validated at runtime)
+    // Note: AtLeastOne constraint removed from type system, now enforced at runtime
     const invalidRejected: EmptyToolResultType = {
       ok: false,
       // Missing both required fields

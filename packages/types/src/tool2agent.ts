@@ -1,5 +1,5 @@
 import { type ZodType } from 'zod';
-import { AtLeastOne, AtMostOne, NonEmptyArray } from './types.js';
+import { NonEmptyArray } from './types.js';
 
 /** The outermost type that characterizes the outcome of a tool call.
  */
@@ -69,17 +69,17 @@ export type FailureFeedback<InputType> =
        */
       ValueFailureFeedback<InputType>;
 
-export type RecordFailureFeedback<InputType extends Record<string, unknown>> = AtLeastOne<{
+export type RecordFailureFeedback<InputType extends Record<string, unknown>> = {
   /**
-   * not every parameter in the input type is required to be present,
-   * but we require at least one to ensure the LLM can make some progress
-   * on refining input.
+   * Not every parameter in the input type is required to be present.
+   * At runtime, at least one of validationResults or problems should be present
+   * to ensure the LLM can make progress on refining input.
    */
-  validationResults: AtLeastOne<{
+  validationResults?: {
     [ParamKey in keyof InputType]?: ParameterValidationResult<InputType, ParamKey>;
-  }>;
-  problems: NonEmptyArray<string>;
-}>;
+  };
+  problems?: NonEmptyArray<string>;
+};
 
 export type ParameterValidationResult<
   InputType extends Record<string, unknown>,
@@ -112,22 +112,26 @@ export type CommonFailureFeedback<T> = {
 } & AcceptableValues<T> &
   FeedbackAndInstructions;
 
-/** Provides feedback that suggests acceptable values for the parameter. */
-export type AcceptableValues<T> = AtMostOne<{
+/** Provides feedback that suggests acceptable values for the parameter.
+ * At runtime, at most one of allowedValues or suggestedValues should be present.
+ */
+export type AcceptableValues<T> = {
   /**
    * Exhaustive list of acceptable values.
    * Empty indicates that there are no options available.
    */
-  allowedValues: T[];
+  allowedValues?: T[];
   /** Non-exhaustive list of acceptable values */
-  suggestedValues: NonEmptyArray<T>;
-}>;
+  suggestedValues?: NonEmptyArray<T>;
+};
 
-/** Refusal result for a single tool call input object field. Mandates at least one justification for the refusal. */
+/** Refusal result for a single tool call input object field.
+ * At runtime, at least one of problems or requiresValidParameters should be present.
+ */
 export type ParameterValidationFailureReasons<
   InputType extends Record<string, unknown>,
   ParamKey extends keyof InputType,
-> = AtLeastOne<{
+> = {
   /** Freeform reasons for why the parameter was not considered valid. */
   problems?: NonEmptyArray<string>;
   /**
@@ -136,4 +140,4 @@ export type ParameterValidationFailureReasons<
    * excluding the parameter itself on the type level.
    */
   requiresValidParameters?: NonEmptyArray<Exclude<keyof InputType, ParamKey>>;
-}>;
+};

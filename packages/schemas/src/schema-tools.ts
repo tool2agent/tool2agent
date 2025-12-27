@@ -1,5 +1,5 @@
 import { type ZodType, z } from 'zod';
-import type { NonEmptyArray, AtLeastOne, AtMostOne } from '@tool2agent/types';
+import type { NonEmptyArray } from '@tool2agent/types';
 
 /**
  * Tagged schema types that explicitly mark whether a schema is an object or union
@@ -65,11 +65,11 @@ export function getUnionBranches(tagged: TaggedSchema): z.ZodTypeAny[] {
 
 /**
  * Creates a Zod schema where at most one of the provided keys can be present.
- * Corresponds to AtMostOne type from types.ts
+ * The schema enforces at runtime what was previously an AtMostOne type constraint.
  */
-type AtMostOneOutput<TShape extends Record<string, ZodType<unknown>>> = AtMostOne<{
+type AtMostOneOutput<TShape extends Record<string, ZodType<unknown>>> = {
   [K in keyof TShape]?: z.infer<TShape[K]>;
-}>;
+};
 
 export function atMostOne<TShape extends Record<string, ZodType<unknown>>>(
   schemas: TShape,
@@ -107,11 +107,11 @@ export function atMostOneTagged<TShape extends Record<string, ZodType<unknown>>>
 
 /**
  * Creates a Zod schema where at least one of the provided keys must be present.
- * Corresponds to AtLeastOne type from types.ts
+ * The schema enforces at runtime what was previously an AtLeastOne type constraint.
  */
-type AtLeastOneOutput<TShape extends Record<string, ZodType<unknown>>> = AtLeastOne<{
+type AtLeastOneOutput<TShape extends Record<string, ZodType<unknown>>> = {
   [K in keyof TShape]?: z.infer<TShape[K]>;
-}>;
+};
 
 export function atLeastOne<TShape extends Record<string, ZodType<unknown>>>(
   schemas: TShape,
