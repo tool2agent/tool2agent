@@ -1,7 +1,6 @@
 import { type ProviderOptions, ToolCallOptions, Tool, tool } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
-import type { ToolCallResult, ToolCallFailure } from '@tool2agent/types';
-import type { NonEmptyArray } from '@tool2agent/types';
+import type { ToolCallResult } from '@tool2agent/types';
 import { createToolCallResultSchema } from './tool-call-result-schema.js';
 
 /**
@@ -91,7 +90,6 @@ export type Tool2AgentParams<
     input: z.infer<InputSchema>,
     options: ToolCallOptions,
   ) => Promise<ToolCallResult<z.infer<InputSchema>, z.infer<OutputSchema>>>;
-  catchExceptions?: boolean;
 } & Omit<
   Tool2Agent<z.infer<InputSchema>, z.infer<OutputSchema>>,
   'inputSchema' | 'outputSchema' | 'execute'
@@ -103,7 +101,6 @@ export type Tool2AgentParams<
  * @param params.execute - function that will be called when the tool is called
  * @param params.inputSchema - the schema of the input type
  * @param params.outputSchema - the schema of the output type (can be `typeof z.never()` if none needed)
- * @param params.catchExceptions - whether to catch exceptions and return them formatted nicely to the LLM as tool2agent `problems`. defaults to true.
  * @returns a Tool2Agent type that can be used by AI SDK tools.
  * @example
  * const tool = tool2agent({
@@ -127,22 +124,6 @@ export function tool2agent<InputSchema extends z.ZodTypeAny, OutputSchema extend
   type OutputType = z.infer<OutputSchema>;
   const inputSchema = inputSchemaParam as z.ZodType<InputType>;
   const outputSchema = outputSchemaParam as z.ZodType<OutputType>;
-  const executeFunction = async (
-    input: InputType,
-    options: ToolCallOptions,
-  ): Promise<ToolCallResult<InputType, OutputType>> => {
-    // format exception into tool2agent rejection reason
-
-    if (typeof params.catchExceptions === 'undefined' || params.catchExceptions) {
-      try {
-        return await execute(input, options);
-      } catch (error: unknown) {
-        return errorToToolCallFailure<InputType>(error);
-      }
-    } else {
-      return await execute(input, options);
-    }
-  };
 
   // Convert outputSchema to ToolCallResult schema
   const toolCallResultSchema = createToolCallResultSchema<InputType, OutputType>(
@@ -154,49 +135,9 @@ export function tool2agent<InputSchema extends z.ZodTypeAny, OutputSchema extend
     ...rest,
     inputSchema,
     outputSchema: toolCallResultSchema,
-    execute: executeFunction,
+    execute,
   };
   // This is only for type checking, to ensure assignability
   const _aiTool: Tool<InputType, ToolCallResult<InputType, OutputType>> = tool(theTool);
   return theTool;
-}
-
-function errorToToolCallFailure<InputType>(error: unknown): ToolCallFailure<InputType> {
-  const errorMessage = `Exception occured during tool call execution: `;
-  if (error instanceof Error) {
-    if (error.stack) {
-      return {
-        ok: false as const,
-        problems: [errorMessage + error.stack],
-      } as ToolCallFailure<InputType>;
-    }
-    if (error.message && error.name) {
-      return {
-        ok: false,
-        problems: [errorMessage + error.name + ': ' + error.message],
-      } as ToolCallFailure<InputType>;
-    }
-    return {
-      ok: false,
-      problems: [errorMessage + error.toString()],
-    } as ToolCallFailure<InputType>;
-  }
-  // Try JSON.stringify for non-Error exceptions
-  try {
-    const jsonString = JSON.stringify(error);
-    if (jsonString !== undefined) {
-      return {
-        ok: false,
-        problems: [errorMessage + jsonString],
-      } as ToolCallFailure<InputType>;
-    }
-  } catch {
-    // Fall through to String() fallback
-  }
-  // Fall back to String() if JSON.stringify fails or returns undefined
-  const problems: NonEmptyArray<string> = [errorMessage + String(error)];
-  return {
-    ok: false,
-    problems,
-  } as ToolCallFailure<InputType>;
 }
