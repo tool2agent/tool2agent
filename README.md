@@ -13,6 +13,7 @@ Technically speaking, tool2agent is a set of conventions that allow structuring 
 ## For agent developers
 
 - [`@tool2agent/ai`](https://github.com/tool2agent/tool2agent/tree/master/packages/ai) — Bindings for AI SDK.
+- [`@tool2agent/prompts`](https://github.com/tool2agent/tool2agent/tree/master/packages/prompts) — Reusable prompt fragments for LLMs to understand and use tool2agent-enabled tools.
 
 ### Middleware for AI SDK
 
