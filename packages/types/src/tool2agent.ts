@@ -137,3 +137,43 @@ export type ParameterValidationFailureReasons<
    */
   requiresValidParameters?: NonEmptyArray<Exclude<keyof InputType, ParamKey>>;
 }>;
+
+/**
+ * Type guard that checks if a ToolCallResult is a success.
+ * Narrows the type to ToolCallSuccess<OutputType>.
+ *
+ * @param result - The tool call result to check
+ * @returns true if the result is a success, with type narrowing
+ *
+ * @example
+ * const result: ToolCallResult<InputType, OutputType> = callTool(input);
+ * if (isSuccess(result)) {
+ *   // result is now typed as ToolCallSuccess<OutputType>
+ *   console.log(result.value);
+ * }
+ */
+export const isSuccess = <InputType, OutputType>(
+  result: ToolCallResult<InputType, OutputType>,
+): result is ToolCallSuccess<OutputType> => {
+  return result.ok === true;
+};
+
+/**
+ * Type guard that checks if a ToolCallResult is a failure.
+ * Narrows the type to ToolCallFailure<InputType>.
+ *
+ * @param result - The tool call result to check
+ * @returns true if the result is a failure, with type narrowing
+ *
+ * @example
+ * const result: ToolCallResult<InputType, OutputType> = callTool(input);
+ * if (isFailure(result)) {
+ *   // result is now typed as ToolCallFailure<InputType>
+ *   console.log(result.problems);
+ * }
+ */
+export const isFailure = <InputType, OutputType>(
+  result: ToolCallResult<InputType, OutputType>,
+): result is ToolCallFailure<InputType> => {
+  return result.ok === false;
+};

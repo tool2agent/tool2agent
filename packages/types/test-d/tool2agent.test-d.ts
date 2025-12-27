@@ -1,13 +1,17 @@
 import {
   type ToolCallSuccess,
   type ToolCallFailure,
+  type ToolCallResult,
   type ParameterValidationResult,
   type FeedbackAndInstructions,
   type AcceptableValues,
   type ValueFailureFeedback,
   CommonFailureFeedback,
+  isSuccess,
+  isFailure,
 } from '../src/tool2agent.js';
 import * as z from 'zod';
+import { Expect, Equal } from './expect.js';
 
 // The purpose of this file is to assert compile-time types only (no runtime).
 
@@ -496,3 +500,154 @@ const invalidRejectedStringWithValidation: ToolCallFailure<string> = {
   // @ts-expect-error - validationResults does not exist in ToolCallRejected for non-record inputs
   validationResults: {},
 };
+
+// ==================== isSuccess and isFailure Type Guard Tests ====================
+
+type GuardTestInput = { name: string; age: number };
+type GuardTestOutput = { result: string; code: number };
+
+// Test isSuccess type guard narrows to ToolCallSuccess
+function testIsSuccessTypeGuard() {
+  const result: ToolCallResult<GuardTestInput, GuardTestOutput> = {
+    ok: true,
+    result: 'success',
+    code: 200,
+  };
+
+  if (isSuccess(result)) {
+    // After isSuccess, result should be ToolCallSuccess<GuardTestOutput>
+    type AssertSuccessType = Expect<Equal<typeof result, ToolCallSuccess<GuardTestOutput>>>;
+    // Can access output fields
+    const resultField: string = result.result;
+    const codeField: number = result.code;
+    // Can access ok: true
+    const okField: true = result.ok;
+  }
+}
+
+// Test isFailure type guard narrows to ToolCallFailure with record input using problems
+function testIsFailureTypeGuardWithProblems() {
+  const result: ToolCallResult<GuardTestInput, GuardTestOutput> = {
+    ok: false,
+    problems: ['General error'],
+  };
+
+  if (isFailure(result)) {
+    // After isFailure, result.ok should be false
+    const okField: false = result.ok;
+    // The type guard correctly narrows result to have ok: false
+    // @ts-expect-error - ok is false, so it can't be assigned to true
+    const wrongOk: true = result.ok;
+  }
+}
+
+// Test isFailure type guard narrows to ToolCallFailure with validationResults
+// Uses a function parameter to get the full union type
+function testIsFailureTypeGuardWithValidationResults(
+  result: ToolCallResult<GuardTestInput, GuardTestOutput>,
+) {
+  if (isFailure(result)) {
+    // After isFailure, result.ok should be false
+    const okField: false = result.ok;
+    // @ts-expect-error - ok is false, so it can't be assigned to true
+    const wrongOk: true = result.ok;
+  }
+}
+
+// Test isSuccess with primitive output type (wrapped in value)
+function testIsSuccessPrimitiveOutput() {
+  const result: ToolCallResult<GuardTestInput, number> = { ok: true, value: 42 };
+
+  if (isSuccess(result)) {
+    type AssertSuccessType = Expect<Equal<typeof result, ToolCallSuccess<number>>>;
+    // Primitive output is wrapped in value field
+    const valueField: number = result.value;
+  }
+}
+
+// Test isFailure with primitive input type
+function testIsFailurePrimitiveInput() {
+  const result: ToolCallResult<string, GuardTestOutput> = {
+    ok: false,
+    problems: ['Invalid input'],
+  };
+
+  if (isFailure(result)) {
+    // For primitive input, result.ok should be false
+    const okField: false = result.ok;
+    // For primitive input, problems is required and accessible
+    const problems = result.problems;
+    // The type guard correctly narrows result to have ok: false
+    // @ts-expect-error - ok is false, so it can't be assigned to true
+    const wrongOk: true = result.ok;
+  }
+}
+
+// Test isSuccess with never output type
+function testIsSuccessNeverOutput() {
+  const result: ToolCallResult<GuardTestInput, never> = { ok: true };
+
+  if (isSuccess(result)) {
+    type AssertSuccessType = Expect<Equal<typeof result, ToolCallSuccess<never>>>;
+    // No value field for never output
+  }
+}
+
+// Test isSuccess with empty object output type
+function testIsSuccessEmptyObjectOutput() {
+  const emptySchema = z.object({});
+  type EmptyOutput = z.infer<typeof emptySchema>;
+
+  const result: ToolCallResult<GuardTestInput, EmptyOutput> = { ok: true };
+
+  if (isSuccess(result)) {
+    type AssertSuccessType = Expect<Equal<typeof result, ToolCallSuccess<EmptyOutput>>>;
+    // No value field for empty object output
+  }
+}
+
+// Test that isSuccess returns true for success case (runtime behavior check)
+function testIsSuccessRuntimeBehavior() {
+  const successResult: ToolCallResult<GuardTestInput, GuardTestOutput> = {
+    ok: true,
+    result: 'success',
+    code: 200,
+  };
+  const failureResult: ToolCallResult<GuardTestInput, GuardTestOutput> = {
+    ok: false,
+    problems: ['Error'],
+  };
+
+  // These are just for type checking - demonstrating runtime behavior
+  if (isSuccess(successResult)) {
+    const _success: ToolCallSuccess<GuardTestOutput> = successResult;
+  }
+  if (isFailure(failureResult)) {
+    const _failure: ToolCallFailure<GuardTestInput> = failureResult;
+  }
+}
+
+// Test that type guards work with function parameters
+function processResult(result: ToolCallResult<GuardTestInput, GuardTestOutput>) {
+  if (isSuccess(result)) {
+    // Inside isSuccess branch, we have ToolCallSuccess<GuardTestOutput>
+    const output: GuardTestOutput = { result: result.result, code: result.code };
+    return output;
+  } else {
+    // Inside else branch after isSuccess, we can still narrow correctly
+    return null;
+  }
+}
+
+// Test that isFailure and isSuccess are complementary
+function testComplementaryGuards(result: ToolCallResult<GuardTestInput, GuardTestOutput>) {
+  // Either isSuccess or isFailure should be true, never both
+  if (isSuccess(result)) {
+    // result.ok is true
+    const okValue: true = result.ok;
+  }
+  if (isFailure(result)) {
+    // result.ok is false
+    const okValue: false = result.ok;
+  }
+}
